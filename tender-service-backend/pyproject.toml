@@ -24,6 +24,8 @@ dependencies = [
     "SQLAlchemy[asyncio]==2.0.45",
     "sqlglot[rs]==28.5.0",
     "user-agents==2.2.0",
+    "requests>=2.32.5",
+    "curl-cffi>=0.14.0",
 ]
 
 [dependency-groups]
