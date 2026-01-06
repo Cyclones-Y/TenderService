@@ -223,10 +223,11 @@ class GetConfig:
         # 读取运行环境
         run_env = os.environ.get('APP_ENV', '')
         # 运行环境未指定时默认加载.env.dev
-        env_file = '.env.dev'
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env_file = os.path.join(project_root, '.env.dev')
         # 运行环境不为空时按命令行参数加载对应.env文件
         if run_env != '':
-            env_file = f'.env.{run_env}'
+            env_file = os.path.join(project_root, f'.env.{run_env}')
         # 加载配置
         load_dotenv(env_file)
 

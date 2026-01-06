@@ -653,6 +653,46 @@ create table sys_notice (
 insert into sys_notice values('1', '温馨提醒：2018-07-01 vfadmin新版本发布啦', '2', '新版本内容', '0', 'admin', sysdate(), '', null, '管理员');
 insert into sys_notice values('2', '维护通知：2018-07-01 vfadmin系统凌晨维护', '1', '维护内容',   '0', 'admin', sysdate(), '', null, '管理员');
 
+-- ----------------------------
+-- 招标信息表（MySQL 版）
+-- ----------------------------
+drop table if exists biz_tender_info;
+create table biz_tender_info (
+  tender_id            bigint(20)     not null auto_increment                comment '主键ID',
+  project_code         varchar(64)    default null                           comment '项目编号',
+  project_name         varchar(200)   default null                           comment '项目名称',
+  district             varchar(100)   default null                           comment '所在区县',
+  construction_unit    varchar(200)   default null                           comment '建设单位',
+  project_stage        varchar(50)    default null                           comment '所处阶段',
+  project_type         varchar(100)   default null                           comment '项目类型',
+  bid_control_price    decimal(18, 2) default null                           comment '招标控制价（万元）',
+  bid_price            decimal(18, 2) default null                           comment '中标价（万元）',
+  construction_scale   varchar(500)   default null                           comment '建设规模',
+  construction_content varchar(500)   default null                           comment '施工内容',
+  tender_scope        varchar(500)   default null                           comment '招标范围',
+  duration             varchar(50)    default null                           comment '工期',
+  registration_deadline datetime      default null                           comment '报名截止时间',
+  agency               varchar(200)   default null                           comment '代理机构',
+  release_time         date           default null                           comment '信息发布时间',
+  expected_announcement_date varchar(100)     default null                   comment '预计招标公告发布时间',
+  announcement_website varchar(100)   default null                           comment '公告网站',
+  pre_qualification_url varchar(255)  default null                           comment '预审公告收集网址',
+  winner_rank_1        varchar(100)   default null                           comment '中标排名1',
+  winner_rank_2        varchar(100)   default null                           comment '中标排名2',
+  winner_rank_3        varchar(100)   default null                           comment '中标排名3',
+  discount_rate        decimal(10, 2) default null                           comment '中标下浮率（%）',
+  unit_price           decimal(18,  2) default null                          comment '单方造价（万元/㎡或万元/项）',
+  bid_date             datetime       default null                           comment '中标日期',
+  bid_announcement_url varchar(255)   default null                           comment '中标公告网址',
+  create_by            varchar(64)    default ''                             comment '创建者',
+  create_time          datetime       default null                           comment '创建时间',
+  update_by            varchar(64)    default ''                             comment '更新者',
+  update_time          datetime       default null                           comment '更新时间',
+  remark               varchar(500)   default null                           comment '备注',
+  primary key (tender_id)
+) engine=innodb comment = '招标信息表';
+alter table biz_tender_info add unique key uk_biz_tender_info_code_stage (project_code, project_stage);
+
 
 -- ----------------------------
 -- 18、代码生成业务表

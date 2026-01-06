@@ -285,7 +285,75 @@ insert into sys_menu values(1011, '角色导出', 101, '5',  '', '', '', '', 1, 
 -- 菜单管理按钮
 insert into sys_menu values(1012, '菜单查询', 102, '1',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:menu:query',          '#', 'admin', current_timestamp, '', null, '');
 insert into sys_menu values(1013, '菜单新增', 102, '2',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:menu:add',            '#', 'admin', current_timestamp, '', null, '');
-insert into sys_menu values(1014, '菜单修改', 102, '3',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:menu:edit',           '#', 'admin', current_timestamp, '', null, '');
+ insert into sys_menu values(1014, '菜单修改', 102, '3',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:menu:edit',           '#', 'admin', current_timestamp, '', null, '');
+ drop table if exists biz_tender_info;
+ create table biz_tender_info (
+     tender_id bigserial,
+     project_code varchar(64) default null,
+     project_name varchar(200) default null,
+     district varchar(100) default null,
+     construction_unit varchar(200) default null,
+     project_stage varchar(50) default null,
+     project_type varchar(100) default null,
+     bid_control_price numeric(18, 2) default null,
+     bid_price numeric(18, 2) default null,
+     construction_scale varchar(500) default null,
+    construction_content varchar(500) default null,
+    tender_scope varchar(500) default null,
+     duration varchar(50) default null,
+     registration_deadline timestamp(0) default null,
+     agency varchar(200) default null,
+    release_time date,
+    expected_announcement_date varchar(100) default null,
+     announcement_website varchar(100) default null,
+     pre_qualification_url varchar(255) default null,
+     winner_rank_1 varchar(100) default null,
+     winner_rank_2 varchar(100) default null,
+     winner_rank_3 varchar(100) default null,
+     discount_rate numeric(10, 2) default null,
+     unit_price numeric(18, 2) default null,
+     bid_date timestamp(0) default null,
+     bid_announcement_url varchar(255) default null,
+     create_by varchar(64) default '',
+     create_time timestamp(0),
+     update_by varchar(64) default '',
+     update_time timestamp(0),
+     remark varchar(500) default null,
+     primary key (tender_id)
+ );
+ comment on column biz_tender_info.tender_id is '主键ID';
+ comment on column biz_tender_info.project_code is '项目编号';
+ comment on column biz_tender_info.project_name is '项目名称';
+ comment on column biz_tender_info.district is '所在区县';
+ comment on column biz_tender_info.construction_unit is '建设单位';
+ comment on column biz_tender_info.project_stage is '所处阶段';
+ comment on column biz_tender_info.project_type is '项目类型';
+ comment on column biz_tender_info.bid_control_price is '招标控制价（万元）';
+ comment on column biz_tender_info.bid_price is '中标价（万元）';
+ comment on column biz_tender_info.construction_scale is '建设规模';
+comment on column biz_tender_info.construction_content is '施工内容';
+comment on column biz_tender_info.tender_scope is '招标范围';
+ comment on column biz_tender_info.duration is '工期';
+ comment on column biz_tender_info.registration_deadline is '报名截止时间';
+ comment on column biz_tender_info.agency is '代理机构';
+comment on column biz_tender_info.release_time is '信息发布时间';
+comment on column biz_tender_info.expected_announcement_date is '预计招标公告发布时间';
+ comment on column biz_tender_info.announcement_website is '公告网站';
+ comment on column biz_tender_info.pre_qualification_url is '预审公告收集网址';
+ comment on column biz_tender_info.winner_rank_1 is '中标排名1';
+ comment on column biz_tender_info.winner_rank_2 is '中标排名2';
+ comment on column biz_tender_info.winner_rank_3 is '中标排名3';
+ comment on column biz_tender_info.discount_rate is '中标下浮率（%）';
+ comment on column biz_tender_info.unit_price is '单方造价（万元/㎡或万元/项）';
+ comment on column biz_tender_info.bid_date is '中标日期';
+ comment on column biz_tender_info.bid_announcement_url is '中标公告网址';
+ comment on column biz_tender_info.create_by is '创建者';
+ comment on column biz_tender_info.create_time is '创建时间';
+ comment on column biz_tender_info.update_by is '更新者';
+ comment on column biz_tender_info.update_time is '更新时间';
+comment on column biz_tender_info.remark is '备注';
+comment on table biz_tender_info is '招标信息表';
+create unique index uq_biz_tender_info_code_stage on biz_tender_info (project_code, project_stage);
 insert into sys_menu values(1015, '菜单删除', 102, '4',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:menu:remove',         '#', 'admin', current_timestamp, '', null, '');
 -- 部门管理按钮
 insert into sys_menu values(1016, '部门查询', 103, '1',  '', '', '', '', 1, 0, 'F', '0', '0', 'system:dept:query',          '#', 'admin', current_timestamp, '', null, '');
