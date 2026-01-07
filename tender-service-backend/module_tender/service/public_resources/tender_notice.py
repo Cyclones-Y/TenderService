@@ -3,9 +3,12 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from module_tender.dao.tender_dao import TenderDao
+from module_tender.entity.structured_entity.tender_notice_fetcher import (
+    TenderNoticeFetcher as TenderNoticeEntity,
+)
 from module_tender.entity.vo.tender_vo import TenderModel
+from module_tender.service.integration.structured_output import extract_structured_data
 from module_tender.service.public_resources.base import PublicResourcesBase
-from module_tender.service.integration.structured_output import extract_tender_fields
 
 
 class TenderNoticeFetcher(PublicResourcesBase):
@@ -163,6 +166,33 @@ class TenderNoticeFetcher(PublicResourcesBase):
             return re.sub(r"\s+", " ", scale_match.group(1)).strip().strip("。；;，")
         return ""
 
+    @staticmethod
+    def _default_ai_entity() -> TenderNoticeEntity:
+        return TenderNoticeEntity(
+            projectType="其他",
+            bidControlPrice=0.0,
+            constructionScale="",
+            tenderScope="",
+            constructionContent="",
+            duration="",
+            registrationDeadline="",
+        )
+
+    @classmethod
+    def _extract_ai_data(cls, text: str) -> TenderNoticeEntity:
+        """
+        使用 AI 提取招标公告关键信息
+        """
+        result = extract_structured_data(
+            text=text,
+            response_model=TenderNoticeEntity,
+            instruction="从下述公告中提取相关信息：",
+            default_factory=cls._default_ai_entity,
+            max_retries=2,
+            retry_delay=0.5,
+        )
+        return result if result is not None else cls._default_ai_entity()
+
     @classmethod
     def parse_item_from_content(cls, json_item: dict) -> dict:
         content_str = json_item.get("content", "")
@@ -173,20 +203,22 @@ class TenderNoticeFetcher(PublicResourcesBase):
         investment_amount = cls._extract_investment_amount(content_str)
         tender_scope = cls._extract_tender_scope(content_str)
         construction_scale = cls._extract_construction_scale(content_str)
-        result = extract_tender_fields(content_str)
+        
+        # 使用 AI 提取补充字段
+        ai_result = cls._extract_ai_data(content_str)
         
         return {
             "projectCode": json_item.get("projectCode"),
             "projectName": json_item.get("title"),
-            "projectType": result.projectType,
+            "projectType": ai_result.projectType,
             "district": district,
             "constructionUnit": construction_unit,
-            "duration": result.duration,
+            "duration": ai_result.duration or duration,  # 优先用 AI 提取的，如果为空则用正则兜底（或反之，视准确率而定）
             "agency": agent_unit,
-            "bidControlPrice": result.bidControlPrice,
-            "constructionScale": result.constructionScale,
-            "constructionContent": result.constructionContent,
-            "tenderScope": result.tenderScope,
+            "bidControlPrice": ai_result.bidControlPrice,
+            "constructionScale": ai_result.constructionScale or construction_scale,
+            "constructionContent": ai_result.constructionContent,
+            "tenderScope": ai_result.tenderScope or tender_scope,
             "announcementWebsite": "公共资源",
             "preQualificationUrl": cls._abs_url(json_item.get("link")),
         }
