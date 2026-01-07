@@ -26,6 +26,8 @@ dependencies = [
     "user-agents==2.2.0",
     "requests>=2.32.5",
     "curl-cffi>=0.14.0",
+    "langchain>=1.2.1",
+    "langchain-deepseek>=1.0.1",
 ]
 
 [dependency-groups]

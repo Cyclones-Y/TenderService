@@ -11,7 +11,7 @@ from module_tender.entity.vo.tender_vo import (
     TenderModel,
     TenderPageQueryModel,
 )
-from module_tender.service.public_resources_service import PublicResourcesService
+from module_tender.service.orchestrator.public_resources_service import PublicResourcesService
 
 
 class TenderService:

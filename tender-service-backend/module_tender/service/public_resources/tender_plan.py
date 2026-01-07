@@ -1,23 +1,15 @@
-import asyncio
-import json
 import re
 
-from curl_cffi import requests as curl_requests
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.database import AsyncSessionLocal
-from exceptions.exception import ServiceException
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.vo.tender_vo import TenderModel
+from module_tender.service.public_resources.base import PublicResourcesBase
 
 
-class PublicResourcesService:
-    """
-    公共资源交易服务平台招标数据获取
-    """
-
+class TenderPlanFetcher(PublicResourcesBase):
     @classmethod
-    async def fetch_tender_plan(
+    async def fetch(
         cls,
         start_date: str,
         end_date: str,
@@ -25,52 +17,15 @@ class PublicResourcesService:
         page: int = 1,
         size: int = 100,
     ) -> int:
-        url = "https://ggzyfw.beijing.gov.cn/elasticsearch/searchList"
-        payload = {
-            "channel_id": "284",
-            "channel_first": "jyxx",
-            "channel_second": "jyxxgcjs",
-            "channel_third": "jyxxgcjszbjh",
-            "channel_fourth": "",
-            "ext": "A98",
-            "ext8": "",
-            "starttime": start_date,
-            "endtime": end_date,
-            "sort": "time",
-            "page": str(page),
-            "size": str(size),
-        }
-        headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        try:
-            resp = await asyncio.to_thread(
-                curl_requests.post,
-                url,
-                data=payload,
-                headers=headers,
-                timeout=30,
-                verify=False,
-                impersonate="chrome",
-            )
-            resp.raise_for_status()
-        except Exception as e:
-            raise ServiceException(message=f"招标计划数据获取失败: {e}") from e
-        try:
-            text = resp.content.decode("utf-8", errors="replace")
-            data = json.loads(text)
-        except Exception:
-            try:
-                data = resp.json()
-            except Exception as e:
-                raise ServiceException(message=f"招标计划数据解析失败: {e}") from e
-        result = data.get("result") or []
-        if isinstance(result, str):
-            try:
-                result = json.loads(result)
-            except Exception:
-                result = []
+        result = await cls.request_list(
+            channel_id="284",
+            channel_third="jyxxgcjszbjh",
+            ext="A98",
+            page=page,
+            size=size,
+            starttime=start_date,
+            endtime=end_date,
+        )
         inserted = 0
         for item in result:
             parsed = cls.parse_plan_item_from_content(item)
@@ -98,23 +53,6 @@ class PublicResourcesService:
                 await db.rollback()
                 continue
         return inserted
-
-    @staticmethod
-    def _abs_url(link: str) -> str:
-        if not link:
-            return ""
-        if str(link).startswith("http"):
-            return str(link)
-        return f"https://ggzyfw.beijing.gov.cn{link}"
-
-    @staticmethod
-    def _parse_release_date(s: str) -> None | __import__("datetime").date:
-        if not s:
-            return None
-        try:
-            return __import__("datetime").datetime.strptime(str(s).strip(), "%Y-%m-%d").date()
-        except ValueError:
-            return None
 
     @staticmethod
     def _extract_construction_unit(content_str: str) -> str:
@@ -219,19 +157,3 @@ class PublicResourcesService:
             "preQualificationUrl": cls._abs_url(json_item.get("link")),
             "expectedAnnouncementDate": expected_announcement_date,
         }
-
-
-async def test_fetch_tender_plan() -> None:
-    async with AsyncSessionLocal() as db:
-        count = await PublicResourcesService.fetch_tender_plan(
-            start_date="2025-12-05",
-            end_date="2026-01-05",
-            db=db,
-            page=1,
-            size=100,
-        )
-        print(count)
-
-
-if __name__ == "__main__":
-    asyncio.run(test_fetch_tender_plan())
