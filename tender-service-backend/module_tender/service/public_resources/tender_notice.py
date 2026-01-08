@@ -12,6 +12,8 @@ from module_tender.service.public_resources.base import PublicResourcesBase
 
 
 class TenderNoticeFetcher(PublicResourcesBase):
+    """招标公告获取与解析"""
+    PROJECT_STAGE = "招标公告"
     @classmethod
     async def fetch(
         cls,
@@ -33,6 +35,9 @@ class TenderNoticeFetcher(PublicResourcesBase):
 
         inserted = 0
         for item in result:
+            # 检查项目是否已存在
+            if await cls.check_and_skip_if_exists(item, db, cls.PROJECT_STAGE):
+                continue
             parsed = cls.parse_item_from_content(item)
             tender = TenderModel(
                 project_code=parsed.get("projectCode"),
@@ -40,7 +45,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
                 project_type=parsed.get('projectType'),
                 district=parsed.get("district"),
                 construction_unit=parsed.get("constructionUnit"),
-                project_stage="招标公告",
+                project_stage=cls.PROJECT_STAGE,
                 bid_control_price=parsed.get("bidControlPrice"),
                 construction_scale=parsed.get("constructionScale"),
                 duration=parsed.get("duration"),
@@ -51,6 +56,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
                 announcement_website=parsed.get("announcementWebsite"),
                 pre_qualification_url=parsed.get("preQualificationUrl"),
                 release_time=cls._parse_release_date(item.get("releaseDate")),
+                remark=parsed.get("remark")
             )
             try:
                 await TenderDao.add_tender_dao(db, tender)
@@ -179,7 +185,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
         )
 
     @classmethod
-    def _extract_ai_data(cls, text: str) -> TenderNoticeEntity:
+    def _extract_ai_data(cls, text: str) -> tuple[TenderNoticeEntity, bool]:
         """
         使用 AI 提取招标公告关键信息
         """
@@ -191,7 +197,9 @@ class TenderNoticeFetcher(PublicResourcesBase):
             max_retries=2,
             retry_delay=0.5,
         )
-        return result if result is not None else cls._default_ai_entity()
+        if result is not None:
+            return result, False
+        return cls._default_ai_entity(), True
 
     @classmethod
     def parse_item_from_content(cls, json_item: dict) -> dict:
@@ -203,9 +211,11 @@ class TenderNoticeFetcher(PublicResourcesBase):
         investment_amount = cls._extract_investment_amount(content_str)
         tender_scope = cls._extract_tender_scope(content_str)
         construction_scale = cls._extract_construction_scale(content_str)
-        
+        html_url = cls._abs_url(json_item.get("link"))
+
         # 使用 AI 提取补充字段
-        ai_result = cls._extract_ai_data(content_str)
+        ai_result, used_default = cls._extract_ai_data(content_str)
+        remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
         
         return {
             "projectCode": json_item.get("projectCode"),
@@ -220,5 +230,6 @@ class TenderNoticeFetcher(PublicResourcesBase):
             "constructionContent": ai_result.constructionContent,
             "tenderScope": ai_result.tenderScope or tender_scope,
             "announcementWebsite": "公共资源",
-            "preQualificationUrl": cls._abs_url(json_item.get("link")),
+            "preQualificationUrl": html_url,
+            "remark": remark_text
         }

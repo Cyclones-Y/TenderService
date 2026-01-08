@@ -8,6 +8,11 @@ from module_tender.service.public_resources.base import PublicResourcesBase
 
 
 class TenderPlanFetcher(PublicResourcesBase):
+    """
+    招标计划
+    """
+    PROJECT_STAGE = "招标计划"
+
     @classmethod
     async def fetch(
         cls,
@@ -34,7 +39,7 @@ class TenderPlanFetcher(PublicResourcesBase):
                 project_name=parsed.get("projectName"),
                 district=parsed.get("district"),
                 construction_unit=parsed.get("constructionUnit"),
-                project_stage="招标计划",
+                project_stage=cls.PROJECT_STAGE,
                 # project_type=parsed.get("projectType"),
                 bid_control_price=parsed.get("bidControlPrice"),
                 construction_scale=parsed.get("constructionScale"),
@@ -143,6 +148,7 @@ class TenderPlanFetcher(PublicResourcesBase):
         construction_scale = cls._extract_construction_scale(content_str)
         tender_scope = cls._extract_tender_scope(content_str)
         expected_announcement_date = cls._extract_expected_announcement_date(content_str)
+        html_url = cls._abs_url(json_item.get("link"))
         return {
             "projectCode": json_item.get("projectCode"),
             "projectName": json_item.get("title"),
@@ -154,6 +160,6 @@ class TenderPlanFetcher(PublicResourcesBase):
             "constructionContent": construction_content,
             "tenderScope": tender_scope,
             "announcementWebsite": "公共资源",
-            "preQualificationUrl": cls._abs_url(json_item.get("link")),
+            "preQualificationUrl": html_url,
             "expectedAnnouncementDate": expected_announcement_date,
         }

@@ -93,7 +93,7 @@ async def test_fetch_tender_data() -> None:
             end_date="2026-01-05",
             db=db,
             page=1,
-            size=10,
+            size=100,
         )
         print(f"Fetched {count_win_candidate} tender notice.")
 

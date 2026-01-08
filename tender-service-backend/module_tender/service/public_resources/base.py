@@ -25,6 +25,24 @@ class PublicResourcesBase:
             return None
 
     @classmethod
+    async def check_and_skip_if_exists(cls, item: dict, db, project_stage: str) -> bool:
+        """
+        检查项目是否已存在，如果存在则跳过
+        :param item: 项目数据
+        :param db: 数据库会话
+        :param project_stage: 项目阶段
+        :return: 如果项目已存在返回True，否则返回False
+        """
+        from module_tender.dao.tender_dao import TenderDao
+
+        project_code = (item.get("projectCode") or "").strip()
+        if project_code:
+            existed = await TenderDao.get_by_code_and_stage(db, project_code, project_stage)
+            if existed:
+                return True
+        return False
+
+    @classmethod
     async def request_list(
         cls,
         channel_id: str,

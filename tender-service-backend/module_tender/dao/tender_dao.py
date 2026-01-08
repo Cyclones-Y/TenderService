@@ -73,6 +73,21 @@ class TenderDao:
         return tender_list
 
     @classmethod
+    async def get_by_code_and_stage(cls, db: AsyncSession, project_code: str, project_stage: str) -> Union[BizTenderInfo, None]:
+        """
+        根据项目编号与阶段获取招标信息
+        """
+        tender_info = (
+            await db.execute(
+                select(BizTenderInfo).where(
+                    BizTenderInfo.project_code == project_code,
+                    BizTenderInfo.project_stage == project_stage,
+                )
+            )
+        ).scalars().first()
+        return tender_info
+
+    @classmethod
     async def add_tender_dao(cls, db: AsyncSession, tender: TenderModel) -> BizTenderInfo:
         """
         新增招标信息数据库操作

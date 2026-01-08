@@ -11,6 +11,7 @@ from module_tender.service.public_resources.base import PublicResourcesBase
 
 class CorrectionNoticeFetcher(PublicResourcesBase):
     """更正公告获取与解析"""
+    PROJECT_STAGE = "更正公告"
 
     @classmethod
     async def fetch(
@@ -32,12 +33,15 @@ class CorrectionNoticeFetcher(PublicResourcesBase):
         )
         inserted = 0
         for item in result:
+            # 检查项目是否已存在
+            if await cls.check_and_skip_if_exists(item, db, cls.PROJECT_STAGE):
+                continue
             parsed = cls.parse_item_from_content(item)
             tender = TenderModel(
                 project_code=parsed.get("projectCode"),
                 project_name=parsed.get("projectName"),
                 district=parsed.get("district"),
-                project_stage="更正公告",
+                project_stage=cls.PROJECT_STAGE,
                 announcement_website=parsed.get("announcementWebsite"),
                 pre_qualification_url=parsed.get("preQualificationUrl"),
                 release_time=cls._parse_release_date(item.get("releaseDate")),
