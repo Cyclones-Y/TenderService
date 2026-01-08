@@ -90,17 +90,20 @@ class WinCandidateFetcher(PublicResourcesBase):
 
     @classmethod
     def _extract_ai_data(cls, text: str) -> tuple[WinCandidateEntity, bool]:
-        result = extract_structured_data(
-            text=text,
-            response_model=WinCandidateEntity,
-            instruction="从下述公告和中标详情中提取相关信息：",
-            default_factory=cls._default_ai_entity,
-            max_retries=2,
-            retry_delay=0.5,
-        )
-        if result is not None:
-            return result, False
-        return cls._default_ai_entity(), True
+        try:
+            result = extract_structured_data(
+                text=text,
+                response_model=WinCandidateEntity,
+                instruction="从下述公告和中标详情中请仅返回结构化字段，不要输出或处理任何联系方式、邮箱、电话等信息。",
+                default_factory=cls._default_ai_entity,
+                max_retries=2,
+                retry_delay=0.5,
+            )
+            if result is not None:
+                return result, False
+            return cls._default_ai_entity(), True
+        except Exception:
+            return cls._default_ai_entity(), True
 
     @classmethod
     async def parse_item_from_content(cls, json_item: dict) -> dict:
@@ -118,6 +121,7 @@ class WinCandidateFetcher(PublicResourcesBase):
 
         # 使用 AI 提取补充字段
         ai_source = "中标候选人公告内容："+ content_str + "中标候选人详细内容："+ (("\n" + txt) if txt else "")
+        ai_source = cls._sanitize_text_for_ai(ai_source)
         ai_result, used_default = cls._extract_ai_data(ai_source)
         remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
 

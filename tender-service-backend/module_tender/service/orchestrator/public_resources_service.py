@@ -89,8 +89,8 @@ async def test_fetch_tender_data() -> None:
         #     size=10,
         # )
         count_win_candidate = await PublicResourcesService.fetch_win_candidate(
-            start_date="2025-12-05",
-            end_date="2026-01-05",
+            start_date="2025-12-22",
+            end_date="2025-12-24",
             db=db,
             page=1,
             size=100,

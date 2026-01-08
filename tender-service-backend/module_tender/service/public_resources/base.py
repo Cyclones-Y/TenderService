@@ -24,6 +24,17 @@ class PublicResourcesBase:
         except ValueError:
             return None
 
+    @staticmethod
+    def _sanitize_text_for_ai(text: str, max_len: int = 6000) -> str:
+        """
+        排除敏感信息
+        """
+        t = text or ""
+        t = re.sub(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '', t)
+        t = re.sub(r'\b1[3-9]\d{9}\b', '', t)
+        t = re.sub(r'\b0\d{2,3}-\d{7,8}\b', '', t)
+        return t[:max_len]
+
     @classmethod
     async def check_and_skip_if_exists(cls, item: dict, db, project_stage: str) -> bool:
         """

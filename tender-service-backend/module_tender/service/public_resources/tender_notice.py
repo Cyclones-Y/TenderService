@@ -189,17 +189,20 @@ class TenderNoticeFetcher(PublicResourcesBase):
         """
         使用 AI 提取招标公告关键信息
         """
-        result = extract_structured_data(
-            text=text,
-            response_model=TenderNoticeEntity,
-            instruction="从下述公告中提取相关信息：",
-            default_factory=cls._default_ai_entity,
-            max_retries=2,
-            retry_delay=0.5,
-        )
-        if result is not None:
-            return result, False
-        return cls._default_ai_entity(), True
+        try:
+            result = extract_structured_data(
+                text=text,
+                response_model=TenderNoticeEntity,
+                instruction="从下述公告中提取相关信息：",
+                default_factory=cls._default_ai_entity,
+                max_retries=2,
+                retry_delay=0.5,
+            )
+            if result is not None:
+                return result, False
+            return cls._default_ai_entity(), True
+        except Exception:
+            return cls._default_ai_entity(), True
 
     @classmethod
     def parse_item_from_content(cls, json_item: dict) -> dict:
@@ -214,6 +217,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
         html_url = cls._abs_url(json_item.get("link"))
 
         # 使用 AI 提取补充字段
+        content_str = cls._sanitize_text_for_ai(content_str)
         ai_result, used_default = cls._extract_ai_data(content_str)
         remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
         
