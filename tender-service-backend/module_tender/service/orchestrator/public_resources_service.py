@@ -73,22 +73,29 @@ class PublicResourcesService:
 
 async def test_fetch_tender_data() -> None:
     async with AsyncSessionLocal() as db:
-        print("Fetching Tender Plan And Notice...")
-        count_plan = await PublicResourcesService.fetch_tender_plan(
+        print("Fetching Tender Data...")
+        # count_plan = await PublicResourcesService.fetch_tender_plan(
+        #     start_date="2025-12-05",
+        #     end_date="2026-01-05",
+        #     db=db,
+        #     page=1,
+        #     size=10,
+        # )
+        # count_notice = await PublicResourcesService.fetch_tender_notice(
+        #     start_date="2025-12-05",
+        #     end_date="2026-01-05",
+        #     db=db,
+        #     page=1,
+        #     size=10,
+        # )
+        count_win_candidate = await PublicResourcesService.fetch_win_candidate(
             start_date="2025-12-05",
             end_date="2026-01-05",
             db=db,
             page=1,
             size=10,
         )
-        count_notice = await PublicResourcesService.fetch_tender_notice(
-            start_date="2025-12-05",
-            end_date="2026-01-05",
-            db=db,
-            page=1,
-            size=10,
-        )
-        print(f"Fetched {count_plan + count_notice} tender notice.")
+        print(f"Fetched {count_win_candidate} tender notice.")
 
 
 if __name__ == "__main__":

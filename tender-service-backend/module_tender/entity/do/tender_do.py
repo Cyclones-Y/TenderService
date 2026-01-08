@@ -59,13 +59,13 @@ class BizTenderInfo(Base):
     )
 
     bid_control_price = Column(
-        Numeric(18, 2),
+        Numeric(18, 6),
         nullable=True,
         server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
         comment='招标控制价（万元）',
     )
     bid_price = Column(
-        Numeric(18, 2),
+        Numeric(18, 6),
         nullable=True,
         server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
         comment='中标价（万元）',
@@ -148,7 +148,7 @@ class BizTenderInfo(Base):
     )
 
     discount_rate = Column(
-        Numeric(10, 2),
+        String(20),
         nullable=True,
         server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
         comment='中标下浮率（%）',
