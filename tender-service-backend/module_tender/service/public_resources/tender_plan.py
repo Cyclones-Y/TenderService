@@ -33,6 +33,9 @@ class TenderPlanFetcher(PublicResourcesBase):
         )
         inserted = 0
         for item in result:
+            # 检查项目是否已存在
+            if await cls.check_and_skip_if_exists(item, db, cls.PROJECT_STAGE):
+                continue
             parsed = cls.parse_plan_item_from_content(item)
             tender = TenderModel(
                 project_code=parsed.get("projectCode"),
