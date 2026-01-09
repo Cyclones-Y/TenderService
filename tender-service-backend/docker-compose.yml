@@ -1,0 +1,44 @@
+services:
+  ruoyi-pg:
+    image: postgres:16-alpine
+    container_name: tender-postgres
+    restart: always
+    env_file:
+      - .env.dockerpg
+    environment:
+        POSTGRES_DB: ${DB_DATABASE:-rujing-tender-service}
+        POSTGRES_USER: ${DB_USERNAME:-postgres}
+        POSTGRES_PASSWORD: ${DB_PASSWORD:-rujing2025.}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_DATABASE:-rujing-tender-service}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - ruoyi-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.pg
+    container_name: tender-backend
+    restart: always
+    depends_on:
+      ruoyi-pg:
+        condition: service_healthy
+    env_file:
+      - .env.dockerpg
+    ports:
+      - "${APP_PORT:-9099}:${APP_PORT:-9099}"
+    networks:
+      - ruoyi-net
+
+networks:
+  ruoyi-net:
+    name: deploy_ruoyi-net
+    external: true
+

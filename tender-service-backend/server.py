@@ -23,13 +23,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f'⏰️ {AppConfig.app_name}开始启动')
     worship()
     await init_create_table()
-    app.state.redis = await RedisUtil.create_redis_pool()
-    await RedisUtil.init_sys_dict(app.state.redis)
-    await RedisUtil.init_sys_config(app.state.redis)
+    try:
+        app.state.redis = await RedisUtil.create_redis_pool()
+        await RedisUtil.init_sys_dict(app.state.redis)
+        await RedisUtil.init_sys_config(app.state.redis)
+    except Exception as e:
+        logger.warning(f'⚠️ Redis连接或初始化失败，系统将以无缓存模式运行: {e}')
+        app.state.redis = None
     await SchedulerUtil.init_system_scheduler()
     logger.info(f'🚀 {AppConfig.app_name}启动成功')
     yield
-    await RedisUtil.close_redis_pool(app)
+    if getattr(app.state, 'redis', None):
+        await RedisUtil.close_redis_pool(app)
     await SchedulerUtil.close_system_scheduler()
 
 
