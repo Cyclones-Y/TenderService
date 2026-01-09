@@ -1,14 +1,21 @@
-FROM python:3.12
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/python:3.12
+
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple/ \
+    PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+    UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple/
 WORKDIR /app
 
 # 复制源代码
 COPY . .
 
 # 安装依赖
-RUN pip install uv && uv sync --locked
+RUN pip install --upgrade pip && \
+    pip install uv && \
+    uv sync
 
 # 暴露端口
 EXPOSE 9099
 
+
 # 启动命令
-CMD ["python", "app.py", "--env=dockerpg"]
+CMD ["/app/.venv/bin/python", "app.py", "--env=dockerpg"]
