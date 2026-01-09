@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { PieChart as PieIcon, BarChart3, TrendingUp, Activity } from 'lucide-react';
+import { getApiUrl } from '../utils/api';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#0ea5e9', '#22c55e', '#eab308', '#f97316'];
 
@@ -41,7 +42,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setErrorText(null);
       try {
-        const res = await fetch('/dev-api/tenders/dashboard');
+        const res = await fetch(getApiUrl('/tenders/dashboard'));
         const json = (await res.json()) as DataResponse<DashboardData>;
         if (!res.ok || !json.success || !json.data) {
           setErrorText(json?.msg || '加载失败');

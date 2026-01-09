@@ -5,6 +5,7 @@ import { Card, CardContent } from './ui/Card';
 import { Input, Select } from './ui/Input';
 import { Button } from './ui/Button';
 import { Search, RotateCcw, Download, Eye, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { getApiUrl } from '../utils/api';
 
 interface TenderListProps {
   onViewDetail: (id: string) => void;
@@ -120,7 +121,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     setLoading(true);
     setErrorText(null);
     try {
-      const res = await fetch(`/dev-api/tenders?${params.toString()}`);
+      const res = await fetch(getApiUrl(`/tenders?${params.toString()}`));
       const json = (await res.json()) as PageResponse<TenderListRow>;
       if (!res.ok || !json.success) {
         setErrorText(json?.msg || '查询失败');

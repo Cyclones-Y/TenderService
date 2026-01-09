@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TenderStage } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
+import { getApiUrl } from '../utils/api';
 import { ArrowLeft, ExternalLink, FileText, Building2, Coins, Calendar, Trophy, AlertTriangle, Globe } from 'lucide-react';
 
 interface TenderDetailProps {
@@ -66,7 +67,7 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
       setErrorText(null);
       setTender(null);
       try {
-        const res = await fetch(`/dev-api/tenders/${id}`);
+        const res = await fetch(getApiUrl(`/tenders/${id}`));
         const json = (await res.json()) as DataResponse<TenderDetailModel>;
         if (!res.ok || !json.success || !json.data) {
           setErrorText(json?.msg || '获取详情失败');

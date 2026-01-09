@@ -8,6 +8,8 @@ import Subscription from './components/Subscription';
 import { ViewState } from './types';
 import { Button } from './components/ui/Button';
 
+import { getApiUrl } from './utils/api';
+
 type TrendStat = { date: string; count: number };
 
 type DashboardData = {
@@ -33,7 +35,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchLastSync = async () => {
       try {
-        const res = await fetch('/dev-api/tenders/dashboard');
+        const res = await fetch(getApiUrl('/tenders/dashboard'));
         const json = (await res.json()) as DataResponse<DashboardData>;
         const minutes = json?.data?.lastSyncMinutesAgo;
         if (typeof minutes === 'number' && Number.isFinite(minutes)) {
