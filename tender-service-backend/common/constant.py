@@ -130,7 +130,10 @@ class JobConstant:
         '}',
         ' ',
     ]
-    JOB_WHITE_LIST = ['module_task']
+    JOB_WHITE_LIST = [
+        'module_task',
+        'module_tender.service.orchestrator.public_resources_service',
+    ]
 
 
 class MenuConstant:

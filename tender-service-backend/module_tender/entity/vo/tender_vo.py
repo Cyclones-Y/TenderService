@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -12,37 +11,37 @@ class TenderModel(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, from_attributes=True, populate_by_name=True)
 
-    tender_id: Optional[int] = Field(default=None, description='主键ID')
-    project_code: Optional[str] = Field(default=None, description='项目编号')
-    project_name: Optional[str] = Field(default=None, description='项目名称')
-    district: Optional[str] = Field(default=None, description='所在区县')
-    construction_unit: Optional[str] = Field(default=None, description='建设单位')
-    project_stage: Optional[str] = Field(default=None, description='所处阶段')
-    project_type: Optional[str] = Field(default=None, description='项目类型')
-    bid_control_price: Optional[float] = Field(default=None, description='招标控制价（万元）')
-    bid_price: Optional[float] = Field(default=None, description='中标价（万元）')
-    construction_scale: Optional[str] = Field(default=None, description='建设规模')
-    construction_content: Optional[str] = Field(default=None, description='施工内容')
-    tender_scope: Optional[str] = Field(default=None, description='招标范围')
-    duration: Optional[str] = Field(default=None, description='工期')
-    registration_deadline: Optional[datetime] = Field(default=None, description='报名截止时间')
-    agency: Optional[str] = Field(default=None, description='代理机构')
-    release_time: Optional[date] = Field(default=None, description='信息发布时间')
-    expected_announcement_date: Optional[str] = Field(default=None, description='预计招标公告发布时间')
-    announcement_website: Optional[str] = Field(default=None, description='公告网站')
-    pre_qualification_url: Optional[str] = Field(default=None, description='预审公告收集网址')
-    winner_rank_1: Optional[str] = Field(default=None, description='中标排名1')
-    winner_rank_2: Optional[str] = Field(default=None, description='中标排名2')
-    winner_rank_3: Optional[str] = Field(default=None, description='中标排名3')
-    discount_rate: Optional[str] = Field(default=None, description='中标下浮率（%）')
-    unit_price: Optional[float] = Field(default=None, description='单方造价（万元/㎡或万元/项）')
-    bid_date: Optional[date] = Field(default=None, description='中标日期')
-    bid_announcement_url: Optional[str] = Field(default=None, description='中标公告网址')
-    create_by: Optional[str] = Field(default=None, description='创建者')
-    create_time: Optional[datetime] = Field(default=None, description='创建时间')
-    update_by: Optional[str] = Field(default=None, description='更新者')
-    update_time: Optional[datetime] = Field(default=None, description='更新时间')
-    remark: Optional[str] = Field(default=None, description='备注')
+    tender_id: int | None = Field(default=None, description='主键ID')
+    project_code: str | None = Field(default=None, description='项目编号')
+    project_name: str | None = Field(default=None, description='项目名称')
+    district: str | None = Field(default=None, description='所在区县')
+    construction_unit: str | None = Field(default=None, description='建设单位')
+    project_stage: str | None = Field(default=None, description='所处阶段')
+    project_type: str | None = Field(default=None, description='项目类型')
+    bid_control_price: float | None = Field(default=None, description='招标控制价（万元）')
+    bid_price: float | None = Field(default=None, description='中标价（万元）')
+    construction_scale: str | None = Field(default=None, description='建设规模')
+    construction_content: str | None = Field(default=None, description='施工内容')
+    tender_scope: str | None = Field(default=None, description='招标范围')
+    duration: str | None = Field(default=None, description='工期')
+    registration_deadline: datetime | None = Field(default=None, description='报名截止时间')
+    agency: str | None = Field(default=None, description='代理机构')
+    release_time: date | None = Field(default=None, description='信息发布时间')
+    expected_announcement_date: str | None = Field(default=None, description='预计招标公告发布时间')
+    announcement_website: str | None = Field(default=None, description='公告网站')
+    pre_qualification_url: str | None = Field(default=None, description='预审公告收集网址')
+    winner_rank_1: str | None = Field(default=None, description='中标排名1')
+    winner_rank_2: str | None = Field(default=None, description='中标排名2')
+    winner_rank_3: str | None = Field(default=None, description='中标排名3')
+    discount_rate: str | None = Field(default=None, description='中标下浮率（%）')
+    unit_price: float | None = Field(default=None, description='单方造价（万元/㎡或万元/项）')
+    bid_date: date | None = Field(default=None, description='中标日期')
+    bid_announcement_url: str | None = Field(default=None, description='中标公告网址')
+    create_by: str | None = Field(default=None, description='创建者')
+    create_time: datetime | None = Field(default=None, description='创建时间')
+    update_by: str | None = Field(default=None, description='更新者')
+    update_time: datetime | None = Field(default=None, description='更新时间')
+    remark: str | None = Field(default=None, description='备注')
 
 
 class TenderQueryModel(TenderModel):
@@ -50,8 +49,8 @@ class TenderQueryModel(TenderModel):
     招标信息管理不分页查询模型
     """
 
-    begin_time: Optional[str] = Field(default=None, description='开始时间')
-    end_time: Optional[str] = Field(default=None, description='结束时间')
+    begin_time: str | None = Field(default=None, description='开始时间')
+    end_time: str | None = Field(default=None, description='结束时间')
 
 
 class TenderPageQueryModel(TenderQueryModel):
@@ -71,3 +70,37 @@ class DeleteTenderModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel)
 
     tender_ids: str = Field(description='需要删除的招标信息ID')
+
+
+class DistrictStatModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    name: str = Field(description='名称')
+    value: int = Field(description='数值')
+
+
+class StageStatModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    name: str = Field(description='名称')
+    value: int = Field(description='数值')
+
+
+class TrendStatModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    date: str = Field(description='日期')
+    count: int = Field(description='数量')
+
+
+class TenderDashboardModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    total_projects: int = Field(description='总招标项目数')
+    month_new: int = Field(description='本月新增')
+    total_amount_billion: float = Field(description='涉及金额（亿元）')
+    top_district: str = Field(description='活跃区县Top1')
+    last_sync_minutes_ago: int = Field(description='上次同步距今分钟数')
+    district_stats: list[DistrictStatModel] = Field(description='区域分布统计')
+    stage_stats: list[StageStatModel] = Field(description='阶段分布统计')
+    trend_stats: list[TrendStatModel] = Field(description='近30天趋势')

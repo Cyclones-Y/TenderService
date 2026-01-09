@@ -13,7 +13,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def build_deepseek_model() -> ChatDeepSeek:
-    api_key = "xx"
+    api_key = "sk-bab3d0968b544542b626ee2f13cd61f6"
     base_url = os.getenv("DEEPSEEK_BASE_URL")
     if not api_key:
         raise RuntimeError("缺少环境变量 DEEPSEEK_API_KEY")

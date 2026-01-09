@@ -1,4 +1,4 @@
-from typing import Union
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,8 +8,12 @@ from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import (
     DeleteTenderModel,
+    DistrictStatModel,
+    StageStatModel,
+    TenderDashboardModel,
     TenderModel,
     TenderPageQueryModel,
+    TrendStatModel,
 )
 from module_tender.service.orchestrator.public_resources_service import PublicResourcesService
 from utils.common_util import SqlalchemyUtil
@@ -24,7 +28,7 @@ class TenderService:
     @classmethod
     async def get_tender_list(
         cls, query_object: TenderPageQueryModel, db: AsyncSession, is_page: bool = True
-    ) -> Union[PageModel, list]:
+    ) -> PageModel | list:
         """
         获取招标信息列表信息
 
@@ -37,7 +41,7 @@ class TenderService:
         return tender_list
 
     @classmethod
-    async def get_tender_detail(cls, tender_id: int, db: AsyncSession) -> Union[BizTenderInfo, None]:
+    async def get_tender_detail(cls, tender_id: int, db: AsyncSession) -> BizTenderInfo | None:
         """
         获取招标信息详细信息
 
@@ -139,6 +143,43 @@ class TenderService:
         }
         list_data = [SqlalchemyUtil.base_to_dict(item, transform_case='camel_to_snake') for item in tender_list]
         return ExcelUtil.export_list2excel(list_data, mapping_dict)
+
+    @classmethod
+    async def get_dashboard_stats(cls, db: AsyncSession) -> TenderDashboardModel:
+        now = datetime.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = (now - timedelta(days=29)).date()
+        end_date = now.date()
+
+        total_projects = await TenderDao.get_dashboard_total_projects(db)
+        month_new = await TenderDao.get_dashboard_month_new(db, month_start)
+        total_amount_wan = await TenderDao.get_dashboard_total_amount_wan(db)
+        top_district = await TenderDao.get_dashboard_top_district(db)
+        last_sync_time = await TenderDao.get_dashboard_last_sync_time(db)
+        last_sync_minutes_ago = 0
+        if last_sync_time:
+            last_sync_minutes_ago = max(0, int((now - last_sync_time).total_seconds() // 60))
+
+        district_rows = await TenderDao.get_dashboard_district_stats(db)
+        stage_rows = await TenderDao.get_dashboard_stage_stats(db)
+        trend_rows = await TenderDao.get_dashboard_trend(db, start_date, end_date)
+
+        trend_map = {d.isoformat(): c for d, c in trend_rows}
+        trend_stats = []
+        for i in range(30):
+            d = (now - timedelta(days=29 - i)).date().isoformat()
+            trend_stats.append(TrendStatModel(date=d, count=int(trend_map.get(d, 0))))
+
+        return TenderDashboardModel(
+            total_projects=total_projects,
+            month_new=month_new,
+            total_amount_billion=round(total_amount_wan / 10000, 2),
+            top_district=top_district or '-',
+            last_sync_minutes_ago=last_sync_minutes_ago,
+            district_stats=[DistrictStatModel(name=n, value=v) for n, v in district_rows],
+            stage_stats=[StageStatModel(name=n, value=v) for n, v in stage_rows],
+            trend_stats=trend_stats,
+        )
 
 
     @classmethod

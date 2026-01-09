@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { DISTRICT_STATS, STAGE_STATS, TREND_STATS } from '../constants';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, LineChart, Line, Legend
@@ -9,9 +8,66 @@ import { PieChart as PieIcon, BarChart3, TrendingUp, Activity } from 'lucide-rea
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#0ea5e9', '#22c55e', '#eab308', '#f97316'];
 
+type DistrictStat = { name: string; value: number };
+type StageStat = { name: string; value: number };
+type TrendStat = { date: string; count: number };
+
+type DashboardData = {
+  totalProjects: number;
+  monthNew: number;
+  totalAmountBillion: number;
+  topDistrict: string;
+  lastSyncMinutesAgo: number;
+  districtStats: DistrictStat[];
+  stageStats: StageStat[];
+  trendStats: TrendStat[];
+};
+
+type DataResponse<T> = {
+  code: number;
+  msg: string;
+  success: boolean;
+  time: string;
+  data?: T;
+};
+
 const Dashboard: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      setLoading(true);
+      setErrorText(null);
+      try {
+        const res = await fetch('/dev-api/tenders/dashboard');
+        const json = (await res.json()) as DataResponse<DashboardData>;
+        if (!res.ok || !json.success || !json.data) {
+          setErrorText(json?.msg || '加载失败');
+          setData(null);
+          return;
+        }
+        setData(json.data);
+      } catch {
+        setErrorText('加载失败');
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchDashboard();
+  }, []);
+
+  const districtStats = data?.districtStats || [];
+  const stageStats = data?.stageStats || [];
+  const trendStats = data?.trendStats || [];
+
   return (
     <div className="space-y-8 animate-fade-in">
+      {errorText ? (
+        <div className="text-base text-slate-500">{errorText}</div>
+      ) : null}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -19,8 +75,8 @@ const Dashboard: React.FC = () => {
             <Activity className="h-5 w-5 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">1,234</div>
-            <p className="text-sm text-slate-500 mt-1">+20.1% 较上月</p>
+            <div className="text-3xl font-bold text-slate-900">{data ? data.totalProjects.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
+            <p className="text-sm text-slate-500 mt-1">统计口径：项目编号去重</p>
           </CardContent>
         </Card>
         <Card>
@@ -29,8 +85,8 @@ const Dashboard: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">142</div>
-            <p className="text-sm text-slate-500 mt-1">+12% 较上周</p>
+            <div className="text-3xl font-bold text-slate-900">{data ? data.monthNew.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
+            <p className="text-sm text-slate-500 mt-1">按采集时间统计</p>
           </CardContent>
         </Card>
         <Card>
@@ -39,8 +95,8 @@ const Dashboard: React.FC = () => {
             <div className="h-5 w-5 text-slate-500 font-serif">¥</div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">45.2</div>
-            <p className="text-sm text-slate-500 mt-1">截止今日</p>
+            <div className="text-3xl font-bold text-slate-900">{data ? data.totalAmountBillion.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
+            <p className="text-sm text-slate-500 mt-1">按招标控制价汇总</p>
           </CardContent>
         </Card>
         <Card>
@@ -49,7 +105,7 @@ const Dashboard: React.FC = () => {
             <PieIcon className="h-5 w-5 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">朝阳区</div>
+            <div className="text-3xl font-bold text-slate-900">{data ? (data.topDistrict || '-') : (loading ? '...' : '-')}</div>
             <p className="text-sm text-slate-500 mt-1">项目数量Top 1</p>
           </CardContent>
         </Card>
@@ -66,7 +122,7 @@ const Dashboard: React.FC = () => {
           <CardContent className="pl-0">
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={TREND_STATS} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                <LineChart data={trendStats} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} minTickGap={30} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} />
@@ -93,7 +149,7 @@ const Dashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={DISTRICT_STATS}
+                    data={districtStats}
                     cx="50%"
                     cy="50%"
                     innerRadius={70}
@@ -101,7 +157,7 @@ const Dashboard: React.FC = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {DISTRICT_STATS.map((entry, index) => (
+                    {districtStats.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -124,7 +180,7 @@ const Dashboard: React.FC = () => {
         <CardContent>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={STAGE_STATS}>
+              <BarChart data={stageStats}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} />

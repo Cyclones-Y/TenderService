@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, List, FileText, Settings as SettingsIcon, Bell, Menu, X, LogOut, PieChart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TenderList from './components/TenderList';
@@ -12,6 +12,25 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [lastSyncText, setLastSyncText] = useState<string>('上次同步: 未知');
+
+  useEffect(() => {
+    const fetchLastSync = async () => {
+      try {
+        const res = await fetch('/dev-api/tenders/dashboard');
+        const json = (await res.json()) as any;
+        const minutes = json?.data?.lastSyncMinutesAgo;
+        if (typeof minutes === 'number' && Number.isFinite(minutes)) {
+          setLastSyncText(`上次同步: ${Math.max(0, Math.floor(minutes))} 分钟前`);
+        } else {
+          setLastSyncText('上次同步: 未知');
+        }
+      } catch {
+        setLastSyncText('上次同步: 未知');
+      }
+    };
+    void fetchLastSync();
+  }, []);
 
   const handleViewDetail = (id: string) => {
     setSelectedTenderId(id);
@@ -142,7 +161,7 @@ const App: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-4">
-             <span className="text-sm text-slate-500 hidden sm:block">上次同步: 10分钟前</span>
+             <span className="text-sm text-slate-500 hidden sm:block">{lastSyncText}</span>
              <Button size="md" variant="ghost" className="relative" onClick={() => handleNavClick('subscription')}>
                 <Bell className="h-6 w-6 text-slate-600" />
                 <span className="absolute top-2 right-3 h-2.5 w-2.5 rounded-full bg-red-500 border border-white"></span>

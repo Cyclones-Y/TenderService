@@ -1,7 +1,6 @@
-from datetime import datetime, time
-from typing import Union
+from datetime import date, datetime
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.vo import PageModel
@@ -17,7 +16,7 @@ class TenderDao:
     """
 
     @classmethod
-    async def get_tender_detail_by_id(cls, db: AsyncSession, tender_id: int) -> Union[BizTenderInfo, None]:
+    async def get_tender_detail_by_id(cls, db: AsyncSession, tender_id: int) -> BizTenderInfo | None:
         """
         根据招标信息id获取招标信息详细信息
 
@@ -32,7 +31,7 @@ class TenderDao:
         return tender_info
 
     @classmethod
-    async def get_tender_detail_by_project_code(cls, db: AsyncSession, project_code: str) -> Union[BizTenderInfo, None]:
+    async def get_tender_detail_by_project_code(cls, db: AsyncSession, project_code: str) -> BizTenderInfo | None:
         """
         根据项目编号获取招标信息详细信息
 
@@ -49,7 +48,7 @@ class TenderDao:
     @classmethod
     async def get_tender_list(
         cls, db: AsyncSession, query_object: TenderPageQueryModel, is_page: bool = False
-    ) -> Union[PageModel, list[BizTenderInfo]]:
+    ) -> PageModel | list[BizTenderInfo]:
         """
         根据查询参数获取招标信息列表信息
 
@@ -72,15 +71,15 @@ class TenderDao:
             end_date = TimeFormatUtil.parse_date(query_object.end_time)
             if start_date and end_date:
                 query = query.where(BizTenderInfo.release_time.between(start_date, end_date))
-        
+
         query = query.order_by(BizTenderInfo.release_time.desc(), BizTenderInfo.create_time.desc())
-        
+
         tender_list = await PageUtil.paginate(db, query, query_object.page_num, query_object.page_size, is_page)
 
         return tender_list
 
     @classmethod
-    async def get_by_code_and_stage(cls, db: AsyncSession, project_code: str, project_stage: str) -> Union[BizTenderInfo, None]:
+    async def get_by_code_and_stage(cls, db: AsyncSession, project_code: str, project_stage: str) -> BizTenderInfo | None:
         """
         根据项目编号与阶段获取招标信息
         """
@@ -130,3 +129,79 @@ class TenderDao:
         :return:
         """
         await db.execute(delete(BizTenderInfo).where(BizTenderInfo.tender_id.in_([tender.tender_id])))
+
+    @classmethod
+    async def get_dashboard_total_projects(cls, db: AsyncSession) -> int:
+        result = await db.execute(
+            select(func.count(func.distinct(BizTenderInfo.project_code))).where(
+                BizTenderInfo.project_code.is_not(None),
+                BizTenderInfo.project_code != '',
+            )
+        )
+        return int(result.scalar() or 0)
+
+    @classmethod
+    async def get_dashboard_month_new(cls, db: AsyncSession, month_start: datetime) -> int:
+        result = await db.execute(select(func.count(BizTenderInfo.tender_id)).where(BizTenderInfo.create_time >= month_start))
+        return int(result.scalar() or 0)
+
+    @classmethod
+    async def get_dashboard_total_amount_wan(cls, db: AsyncSession) -> float:
+        result = await db.execute(select(func.sum(BizTenderInfo.bid_control_price)))
+        value = result.scalar()
+        return float(value or 0)
+
+    @classmethod
+    async def get_dashboard_top_district(cls, db: AsyncSession) -> str:
+        result = await db.execute(
+            select(BizTenderInfo.district, func.count(func.distinct(BizTenderInfo.project_code)).label('cnt'))
+            .where(BizTenderInfo.district.is_not(None), BizTenderInfo.district != '')
+            .group_by(BizTenderInfo.district)
+            .order_by(func.count(func.distinct(BizTenderInfo.project_code)).desc())
+            .limit(1)
+        )
+        row = result.first()
+        return str(row[0]) if row and row[0] else ''
+
+    @classmethod
+    async def get_dashboard_last_sync_time(cls, db: AsyncSession) -> datetime | None:
+        result = await db.execute(select(func.max(BizTenderInfo.update_time)))
+        return result.scalar()
+
+    @classmethod
+    async def get_dashboard_district_stats(cls, db: AsyncSession, top_n: int = 8) -> list[tuple[str, int]]:
+        result = await db.execute(
+            select(BizTenderInfo.district, func.count(func.distinct(BizTenderInfo.project_code)).label('cnt'))
+            .where(BizTenderInfo.district.is_not(None), BizTenderInfo.district != '')
+            .group_by(BizTenderInfo.district)
+            .order_by(func.count(func.distinct(BizTenderInfo.project_code)).desc())
+        )
+        rows = [(str(r[0]), int(r[1] or 0)) for r in result.all() if r[0]]
+        if len(rows) <= top_n:
+            return rows
+        head = rows[:top_n]
+        other_sum = sum(v for _, v in rows[top_n:])
+        if other_sum > 0:
+            head.append(('其他', other_sum))
+        return head
+
+    @classmethod
+    async def get_dashboard_stage_stats(cls, db: AsyncSession) -> list[tuple[str, int]]:
+        result = await db.execute(
+            select(BizTenderInfo.project_stage, func.count(BizTenderInfo.tender_id).label('cnt'))
+            .where(BizTenderInfo.project_stage.is_not(None), BizTenderInfo.project_stage != '')
+            .group_by(BizTenderInfo.project_stage)
+            .order_by(func.count(BizTenderInfo.tender_id).desc())
+        )
+        return [(str(r[0]), int(r[1] or 0)) for r in result.all() if r[0]]
+
+    @classmethod
+    async def get_dashboard_trend(cls, db: AsyncSession, start_date: date, end_date: date) -> list[tuple[date, int]]:
+        date_expr = func.coalesce(BizTenderInfo.release_time, func.date(BizTenderInfo.create_time)).label('d')
+        result = await db.execute(
+            select(date_expr, func.count(BizTenderInfo.tender_id).label('cnt'))
+            .where(date_expr.between(start_date, end_date))
+            .group_by(date_expr)
+            .order_by(date_expr.asc())
+        )
+        return [(r[0], int(r[1] or 0)) for r in result.all() if r[0]]

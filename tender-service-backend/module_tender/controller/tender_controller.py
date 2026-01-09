@@ -9,6 +9,7 @@ from common.vo import DataResponseModel, PageModel
 from config.get_db import get_db
 from module_tender.entity.vo.tender_vo import (
     DeleteTenderModel,
+    TenderDashboardModel,
     TenderModel,
     TenderPageQueryModel,
 )
@@ -17,10 +18,10 @@ from utils.common_util import bytes2file_response
 from utils.response_util import ResponseUtil
 
 # 实例化路由对象
-tenderController = APIRouterPro(prefix='/tenders', tags=['招标信息管理'])
+tender_controller = APIRouterPro(prefix='/tenders', tags=['招标信息管理'])
 
 
-@tenderController.get(
+@tender_controller.get(
     '', response_model=PageModel, summary='获取招标信息列表', description='获取招标信息列表'
 )
 async def get_tender_list(
@@ -51,7 +52,18 @@ async def get_tender_list(
     return ResponseUtil.success(model_content=tender_list)
 
 
-@tenderController.get(
+@tender_controller.get(
+    '/dashboard',
+    response_model=DataResponseModel[TenderDashboardModel],
+    summary='获取招标数据概览',
+    description='用于获取数据概览页面所需的统计数据',
+)
+async def get_tender_dashboard(db: AsyncSession = Depends(get_db)) -> Response:
+    dashboard = await TenderService.get_dashboard_stats(db)
+    return ResponseUtil.success(data=dashboard)
+
+
+@tender_controller.get(
     '/{tender_id}', response_model=DataResponseModel[TenderModel], summary='获取招标信息详细信息', description='获取招标信息详细信息'
 )
 async def get_tender_detail(
@@ -66,7 +78,7 @@ async def get_tender_detail(
     return ResponseUtil.failure(msg='未找到该招标信息')
 
 
-@tenderController.post(
+@tender_controller.post(
     '', response_model=DataResponseModel[TenderModel], summary='新增招标信息', description='新增招标信息'
 )
 async def add_tender(
@@ -79,7 +91,7 @@ async def add_tender(
     return ResponseUtil.success(data=TenderModel.model_validate(new_tender))
 
 
-@tenderController.put(
+@tender_controller.put(
     '', summary='修改招标信息', description='修改招标信息'
 )
 async def update_tender(
@@ -92,7 +104,7 @@ async def update_tender(
     return ResponseUtil.success(msg='修改成功')
 
 
-@tenderController.delete(
+@tender_controller.delete(
     '/{tender_ids}', summary='删除招标信息', description='删除招标信息'
 )
 async def delete_tender(
@@ -106,7 +118,7 @@ async def delete_tender(
     return ResponseUtil.success(msg='删除成功')
 
 
-@tenderController.post(
+@tender_controller.post(
     '/export',
     summary='导出招标信息列表接口',
     description='用于导出当前符合查询条件的招标信息列表数据',
