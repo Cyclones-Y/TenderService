@@ -123,6 +123,7 @@ async def public_resources_tender_sync_job(
     include_plan: bool = True,
     include_notice: bool = True,
     include_win_candidate: bool = True,
+    **kwargs,
 ) -> None:
     days_back_int = max(0, _to_int(days_back, 7))
     page_int = max(1, _to_int(page, 1))
@@ -136,6 +137,8 @@ async def public_resources_tender_sync_job(
     logger.info(
         f"public_resources_tender_sync_job start: {start_date}~{end_date_str}, page={page_int}, size={size_int}"
     )
+    if kwargs:
+        logger.info(f"public_resources_tender_sync_job ignored kwargs: {sorted(kwargs.keys())}")
     async with AsyncSessionLocal() as db:
         result = await PublicResourcesService.fetch_all(
             start_date=start_date,

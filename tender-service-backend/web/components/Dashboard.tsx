@@ -74,7 +74,7 @@ const Dashboard: React.FC = () => {
             <CardTitle className="text-base font-medium text-slate-600">总招标项目</CardTitle>
             <Activity className="h-5 w-5 text-slate-500" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-3xl font-bold text-slate-900">{data ? data.totalProjects.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
             <p className="text-sm text-slate-500 mt-1">统计口径：项目编号去重</p>
           </CardContent>
@@ -84,7 +84,7 @@ const Dashboard: React.FC = () => {
             <CardTitle className="text-base font-medium text-slate-600">本月新增</CardTitle>
             <TrendingUp className="h-5 w-5 text-emerald-500" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-3xl font-bold text-slate-900">{data ? data.monthNew.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
             <p className="text-sm text-slate-500 mt-1">按采集时间统计</p>
           </CardContent>
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
             <CardTitle className="text-base font-medium text-slate-600">涉及金额 (亿元)</CardTitle>
             <div className="h-5 w-5 text-slate-500 font-serif">¥</div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-3xl font-bold text-slate-900">{data ? data.totalAmountBillion.toLocaleString('zh-CN') : (loading ? '...' : '-')}</div>
             <p className="text-sm text-slate-500 mt-1">按招标控制价汇总</p>
           </CardContent>
@@ -104,7 +104,7 @@ const Dashboard: React.FC = () => {
             <CardTitle className="text-base font-medium text-slate-600">活跃区县</CardTitle>
             <PieIcon className="h-5 w-5 text-slate-500" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-3xl font-bold text-slate-900">{data ? (data.topDistrict || '-') : (loading ? '...' : '-')}</div>
             <p className="text-sm text-slate-500 mt-1">项目数量Top 1</p>
           </CardContent>

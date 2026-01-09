@@ -19,6 +19,7 @@ class WinCandidateFetcher(PublicResourcesBase):
 
     _default_ai_entity = lambda: WinCandidateEntity(
         constructionContent="",
+        district="市级",
         duration="",
         projectType="",
         bidControlPrice=0.0,
@@ -129,7 +130,7 @@ class WinCandidateFetcher(PublicResourcesBase):
             "projectCode": json_item.get("projectCode"),
             "projectName": json_item.get("title"),
             "projectType": ai_result.projectType,
-            "district": district,
+            "district": ai_result.district or district,
             "constructionUnit": ai_result.tendererOrAgency,
             "duration": ai_result.duration,
             "agency": ai_result.tendererOrAgency,

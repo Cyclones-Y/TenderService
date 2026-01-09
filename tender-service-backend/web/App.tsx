@@ -8,25 +8,50 @@ import Subscription from './components/Subscription';
 import { ViewState } from './types';
 import { Button } from './components/ui/Button';
 
+type TrendStat = { date: string; count: number };
+
+type DashboardData = {
+  lastSyncMinutesAgo: number;
+  trendStats: TrendStat[];
+};
+
+type DataResponse<T> = {
+  code: number;
+  msg: string;
+  success: boolean;
+  time: string;
+  data?: T;
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lastSyncText, setLastSyncText] = useState<string>('上次同步: 未知');
+  const [dashboardWelcomeText, setDashboardWelcomeText] = useState<string>('欢迎回来。');
 
   useEffect(() => {
     const fetchLastSync = async () => {
       try {
         const res = await fetch('/dev-api/tenders/dashboard');
-        const json = (await res.json()) as any;
+        const json = (await res.json()) as DataResponse<DashboardData>;
         const minutes = json?.data?.lastSyncMinutesAgo;
         if (typeof minutes === 'number' && Number.isFinite(minutes)) {
           setLastSyncText(`上次同步: ${Math.max(0, Math.floor(minutes))} 分钟前`);
         } else {
           setLastSyncText('上次同步: 未知');
         }
+
+        const trendStats = json?.data?.trendStats;
+        const todayNew = Array.isArray(trendStats) ? trendStats.at(-1)?.count : undefined;
+        if (typeof todayNew === 'number' && Number.isFinite(todayNew)) {
+          setDashboardWelcomeText(`欢迎回来，今日已更新 ${Math.max(0, Math.floor(todayNew))} 条新招标信息。`);
+        } else {
+          setDashboardWelcomeText('欢迎回来。');
+        }
       } catch {
         setLastSyncText('上次同步: 未知');
+        setDashboardWelcomeText('欢迎回来。');
       }
     };
     void fetchLastSync();
@@ -76,7 +101,7 @@ const App: React.FC = () => {
 
   const getPageDescription = () => {
      switch (currentView) {
-      case 'dashboard': return '欢迎回来，今日已更新 24 条新招标信息。';
+      case 'dashboard': return dashboardWelcomeText;
       case 'list': return '浏览并管理所有招标项目信息。';
       case 'detail': return '查看招标项目的详细业务与资金数据。';
       case 'settings': return '管理系统显示偏好与编号规则。';
@@ -112,7 +137,7 @@ const App: React.FC = () => {
                 <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
                   <PieChart size={20} />
                 </div>
-                <span>TenderSight</span>
+                <span>招标信息统计</span>
              </div>
           </div>
           <div className="flex-1 overflow-y-auto py-6 px-4">
@@ -138,7 +163,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="truncate text-base font-medium text-slate-900">Jason Smith</p>
-                  <p className="truncate text-sm text-slate-500">业务部 - 高级经理</p>
+                  <p className="truncate text-sm text-slate-500">AI开发部</p>
                 </div>
              </div>
              <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-base font-medium text-slate-700 hover:bg-slate-50 transition-colors">

@@ -3,7 +3,9 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from module_tender.dao.tender_dao import TenderDao
+from module_tender.entity.structured_entity.tender_plan_entity import TenderPlanEntity
 from module_tender.entity.vo.tender_vo import TenderModel
+from module_tender.service.integration.structured_output import extract_structured_data
 from module_tender.service.public_resources.base import PublicResourcesBase
 
 
@@ -12,6 +14,13 @@ class TenderPlanFetcher(PublicResourcesBase):
     招标计划
     """
     PROJECT_STAGE = "招标计划"
+
+    @staticmethod
+    def _default_ai_entity() -> TenderPlanEntity:
+        return TenderPlanEntity(
+            district= "市级",
+            projectType= "",
+        )
 
     @classmethod
     async def fetch(
@@ -43,7 +52,7 @@ class TenderPlanFetcher(PublicResourcesBase):
                 district=parsed.get("district"),
                 construction_unit=parsed.get("constructionUnit"),
                 project_stage=cls.PROJECT_STAGE,
-                # project_type=parsed.get("projectType"),
+                project_type=parsed.get("projectType"),
                 bid_control_price=parsed.get("bidControlPrice"),
                 construction_scale=parsed.get("constructionScale"),
                 construction_content=parsed.get("constructionContent"),
@@ -52,6 +61,7 @@ class TenderPlanFetcher(PublicResourcesBase):
                 pre_qualification_url=parsed.get("preQualificationUrl"),
                 expected_announcement_date=parsed.get("expectedAnnouncementDate"),
                 release_time=cls._parse_release_date(item.get("releaseDate")),
+                remark=parsed.get("remark"),
             )
             try:
                 await TenderDao.add_tender_dao(db, tender)
@@ -142,6 +152,28 @@ class TenderPlanFetcher(PublicResourcesBase):
         return None
 
     @classmethod
+    def _extract_ai_data(cls, text: str) -> tuple[TenderPlanEntity, bool]:
+        """
+        使用 AI 提取招标公告关键信息
+        """
+        try:
+            result = extract_structured_data(
+                text=text,
+                response_model=TenderPlanEntity,
+                instruction="从下述公告中提取相关信息：",
+                default_factory=cls._default_ai_entity,
+                max_retries=2,
+                retry_delay=0.5,
+            )
+            if result is not None:
+                return result, False
+            return cls._default_ai_entity(), True
+        except Exception:
+            return cls._default_ai_entity(), True
+
+
+
+    @classmethod
     def parse_plan_item_from_content(cls, json_item: dict) -> dict:
         content_str = json_item.get("content", "")
         district = json_item.get("region", "")
@@ -152,12 +184,15 @@ class TenderPlanFetcher(PublicResourcesBase):
         tender_scope = cls._extract_tender_scope(content_str)
         expected_announcement_date = cls._extract_expected_announcement_date(content_str)
         html_url = cls._abs_url(json_item.get("link"))
+
+        ai_result, used_default = cls._extract_ai_data(content_str)
+        remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
         return {
             "projectCode": json_item.get("projectCode"),
             "projectName": json_item.get("title"),
-            "district": district,
+            "district": ai_result.district or district,
             "constructionUnit": construction_unit,
-            # "projectType": PublicResourcesService.extract_project_type(json_item.get("title")),
+            "projectType": ai_result.projectType,
             "bidControlPrice": bid_control_price,
             "constructionScale": construction_scale,
             "constructionContent": construction_content,
@@ -165,4 +200,5 @@ class TenderPlanFetcher(PublicResourcesBase):
             "announcementWebsite": "公共资源",
             "preQualificationUrl": html_url,
             "expectedAnnouncementDate": expected_announcement_date,
+            "remark": remark_text,
         }

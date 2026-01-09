@@ -9,6 +9,26 @@ from module_tender.entity.vo.tender_vo import TenderModel, TenderPageQueryModel
 from utils.page_util import PageUtil
 from utils.time_format_util import TimeFormatUtil
 
+BEIJING_DISTRICTS = (
+    '东城区',
+    '西城区',
+    '朝阳区',
+    '丰台区',
+    '石景山区',
+    '海淀区',
+    '顺义区',
+    '通州区',
+    '大兴区',
+    '房山区',
+    '门头沟区',
+    '昌平区',
+    '平谷区',
+    '密云区',
+    '怀柔区',
+    '延庆区',
+)
+OTHER_DISTRICT_LABEL = '其他'
+
 
 class TenderDao:
     """
@@ -155,13 +175,31 @@ class TenderDao:
     async def get_dashboard_top_district(cls, db: AsyncSession) -> str:
         result = await db.execute(
             select(BizTenderInfo.district, func.count(func.distinct(BizTenderInfo.project_code)).label('cnt'))
-            .where(BizTenderInfo.district.is_not(None), BizTenderInfo.district != '')
+            .where(
+                BizTenderInfo.district.is_not(None),
+                BizTenderInfo.district != '',
+            )
             .group_by(BizTenderInfo.district)
             .order_by(func.count(func.distinct(BizTenderInfo.project_code)).desc())
-            .limit(1)
         )
-        row = result.first()
-        return str(row[0]) if row and row[0] else ''
+        rows = [(str(r[0]), int(r[1] or 0)) for r in result.all() if r[0]]
+        if not rows:
+            return ''
+
+        count_by_district = dict(rows)
+        other_sum = sum(count for district, count in rows if district not in BEIJING_DISTRICTS)
+
+        best_name = ''
+        best_count = 0
+        for district in BEIJING_DISTRICTS:
+            count = count_by_district.get(district, 0)
+            if count > best_count:
+                best_count = count
+                best_name = district
+        if other_sum > best_count:
+            best_name = OTHER_DISTRICT_LABEL
+
+        return best_name
 
     @classmethod
     async def get_dashboard_last_sync_time(cls, db: AsyncSession) -> datetime | None:
@@ -169,21 +207,24 @@ class TenderDao:
         return result.scalar()
 
     @classmethod
-    async def get_dashboard_district_stats(cls, db: AsyncSession, top_n: int = 8) -> list[tuple[str, int]]:
+    async def get_dashboard_district_stats(cls, db: AsyncSession) -> list[tuple[str, int]]:
         result = await db.execute(
             select(BizTenderInfo.district, func.count(func.distinct(BizTenderInfo.project_code)).label('cnt'))
-            .where(BizTenderInfo.district.is_not(None), BizTenderInfo.district != '')
+            .where(
+                BizTenderInfo.district.is_not(None),
+                BizTenderInfo.district != '',
+            )
             .group_by(BizTenderInfo.district)
             .order_by(func.count(func.distinct(BizTenderInfo.project_code)).desc())
         )
         rows = [(str(r[0]), int(r[1] or 0)) for r in result.all() if r[0]]
-        if len(rows) <= top_n:
-            return rows
-        head = rows[:top_n]
-        other_sum = sum(v for _, v in rows[top_n:])
+        count_by_district = dict(rows)
+        other_sum = sum(count for district, count in rows if district not in BEIJING_DISTRICTS)
+
+        stats = [(d, count_by_district[d]) for d in BEIJING_DISTRICTS if count_by_district.get(d, 0) > 0]
         if other_sum > 0:
-            head.append(('其他', other_sum))
-        return head
+            stats.append((OTHER_DISTRICT_LABEL, other_sum))
+        return stats
 
     @classmethod
     async def get_dashboard_stage_stats(cls, db: AsyncSession) -> list[tuple[str, int]]:

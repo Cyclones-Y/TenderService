@@ -175,6 +175,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
     @staticmethod
     def _default_ai_entity() -> TenderNoticeEntity:
         return TenderNoticeEntity(
+            district="市级",
             projectType="其他",
             bidControlPrice=0.0,
             constructionScale="",
@@ -225,7 +226,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
             "projectCode": json_item.get("projectCode"),
             "projectName": json_item.get("title"),
             "projectType": ai_result.projectType,
-            "district": district,
+            "district": ai_result.district or district,
             "constructionUnit": construction_unit,
             "duration": ai_result.duration or duration,  # 优先用 AI 提取的，如果为空则用正则兜底（或反之，视准确率而定）
             "agency": agent_unit,
