@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +39,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
             # 检查项目是否已存在
             if await cls.check_and_skip_if_exists(item, db, cls.PROJECT_STAGE):
                 continue
-            parsed = cls.parse_item_from_content(item)
+            parsed = await cls.parse_item_from_content(item)
             tender = TenderModel(
                 project_code=parsed.get("projectCode"),
                 project_name=parsed.get("projectName"),
@@ -186,12 +187,13 @@ class TenderNoticeFetcher(PublicResourcesBase):
         )
 
     @classmethod
-    def _extract_ai_data(cls, text: str) -> tuple[TenderNoticeEntity, bool]:
+    async def _extract_ai_data(cls, text: str) -> tuple[TenderNoticeEntity, bool]:
         """
         使用 AI 提取招标公告关键信息
         """
         try:
-            result = extract_structured_data(
+            result = await asyncio.to_thread(
+                extract_structured_data,
                 text=text,
                 response_model=TenderNoticeEntity,
                 instruction="从下述公告中提取相关信息：",
@@ -206,7 +208,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
             return cls._default_ai_entity(), True
 
     @classmethod
-    def parse_item_from_content(cls, json_item: dict) -> dict:
+    async def parse_item_from_content(cls, json_item: dict) -> dict:
         content_str = json_item.get("content", "")
         district = json_item.get("region", "")
         construction_unit = cls._extract_construction_unit(content_str)
@@ -219,7 +221,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
 
         # 使用 AI 提取补充字段
         content_str = cls._sanitize_text_for_ai(content_str)
-        ai_result, used_default = cls._extract_ai_data(content_str)
+        ai_result, used_default = await cls._extract_ai_data(content_str)
         remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
         
         return {

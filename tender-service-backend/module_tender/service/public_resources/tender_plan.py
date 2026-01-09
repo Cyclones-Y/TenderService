@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,7 +46,7 @@ class TenderPlanFetcher(PublicResourcesBase):
             # 检查项目是否已存在
             if await cls.check_and_skip_if_exists(item, db, cls.PROJECT_STAGE):
                 continue
-            parsed = cls.parse_plan_item_from_content(item)
+            parsed = await cls.parse_plan_item_from_content(item)
             tender = TenderModel(
                 project_code=parsed.get("projectCode"),
                 project_name=parsed.get("projectName"),
@@ -152,12 +153,13 @@ class TenderPlanFetcher(PublicResourcesBase):
         return None
 
     @classmethod
-    def _extract_ai_data(cls, text: str) -> tuple[TenderPlanEntity, bool]:
+    async def _extract_ai_data(cls, text: str) -> tuple[TenderPlanEntity, bool]:
         """
         使用 AI 提取招标公告关键信息
         """
         try:
-            result = extract_structured_data(
+            result = await asyncio.to_thread(
+                extract_structured_data,
                 text=text,
                 response_model=TenderPlanEntity,
                 instruction="从下述公告中提取相关信息：",
@@ -174,7 +176,7 @@ class TenderPlanFetcher(PublicResourcesBase):
 
 
     @classmethod
-    def parse_plan_item_from_content(cls, json_item: dict) -> dict:
+    async def parse_plan_item_from_content(cls, json_item: dict) -> dict:
         content_str = json_item.get("content", "")
         district = json_item.get("region", "")
         construction_unit = cls._extract_construction_unit(content_str)
@@ -185,7 +187,7 @@ class TenderPlanFetcher(PublicResourcesBase):
         expected_announcement_date = cls._extract_expected_announcement_date(content_str)
         html_url = cls._abs_url(json_item.get("link"))
 
-        ai_result, used_default = cls._extract_ai_data(content_str)
+        ai_result, used_default = await cls._extract_ai_data(content_str)
         remark_text = f"数据提取失败请手动打开浏览器查看：{html_url}" if used_default else None
         return {
             "projectCode": json_item.get("projectCode"),
