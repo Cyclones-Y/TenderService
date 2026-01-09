@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, List, FileText, Settings as SettingsIcon, Bell, Menu, X, LogOut, PieChart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TenderList from './components/TenderList';
@@ -25,12 +26,47 @@ type DataResponse<T> = {
   data?: T;
 };
 
-const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-  const [selectedTenderId, setSelectedTenderId] = useState<string | null>(null);
+// Wrap main content in a component to use Router hooks
+const MainContent: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lastSyncText, setLastSyncText] = useState<string>('上次同步: 未知');
   const [dashboardWelcomeText, setDashboardWelcomeText] = useState<string>('欢迎回来。');
+
+  // Determine current view from URL path
+  const currentView = React.useMemo(() => {
+    const path = location.pathname;
+    if (path.startsWith('/tenders/')) return 'detail';
+    if (path === '/tenders') return 'list';
+    if (path === '/subscription') return 'subscription';
+    if (path === '/settings') return 'settings';
+    return 'dashboard';
+  }, [location.pathname]);
+
+  const selectedTenderId = React.useMemo(() => {
+    const match = location.pathname.match(/^\/tenders\/(.+)$/);
+    return match ? match[1] : null;
+  }, [location.pathname]);
+
+  const handleNavClick = (view: ViewState) => {
+    if (view === 'dashboard') navigate('/');
+    else if (view === 'list') navigate('/tenders');
+    else if (view === 'subscription') navigate('/subscription');
+    else if (view === 'settings') navigate('/settings');
+    
+    setIsMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleViewDetail = (id: string) => {
+    navigate(`/tenders/${id}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToList = () => {
+    navigate('/tenders');
+  };
 
   useEffect(() => {
     const fetchLastSync = async () => {
@@ -57,24 +93,11 @@ const App: React.FC = () => {
       }
     };
     void fetchLastSync();
+    
+    // Refresh every 5 minutes
+    const intervalId = setInterval(fetchLastSync, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
   }, []);
-
-  const handleViewDetail = (id: string) => {
-    setSelectedTenderId(id);
-    setCurrentView('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleBackToList = () => {
-    setSelectedTenderId(null);
-    setCurrentView('list');
-  };
-
-  const handleNavClick = (view: ViewState) => {
-    setCurrentView(view);
-    setIsMobileMenuOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const NavItem = ({ view, label, icon: Icon }: { view: ViewState; label: string; icon: any }) => (
     <button
@@ -110,6 +133,15 @@ const App: React.FC = () => {
       case 'subscription': return '配置您的招标信息监控关键词与通知规则。';
       default: return '';
     }
+  };
+
+  const renderContent = () => {
+    if (currentView === 'dashboard') return <Dashboard />;
+    if (currentView === 'list') return <TenderList onViewDetail={handleViewDetail} />;
+    if (currentView === 'detail' && selectedTenderId) return <TenderDetail id={selectedTenderId} onBack={handleBackToList} />;
+    if (currentView === 'subscription') return <Subscription />;
+    if (currentView === 'settings') return <Settings />;
+    return <Dashboard />;
   };
 
   return (
@@ -198,13 +230,7 @@ const App: React.FC = () => {
 
         {/* Updated Container Width */}
         <div className="p-6 md:p-10 max-w-[1920px] mx-auto">
-          {currentView === 'dashboard' && <Dashboard />}
-          {currentView === 'list' && <TenderList onViewDetail={handleViewDetail} />}
-          {currentView === 'detail' && selectedTenderId && (
-            <TenderDetail id={selectedTenderId} onBack={handleBackToList} />
-          )}
-          {currentView === 'settings' && <Settings />}
-          {currentView === 'subscription' && <Subscription />}
+          {renderContent()}
         </div>
       </main>
 
@@ -216,6 +242,16 @@ const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <Routes>
+        <Route path="/*" element={<MainContent />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
