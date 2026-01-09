@@ -79,21 +79,21 @@ async def test_fetch_tender_data() -> None:
             end_date="2026-01-05",
             db=db,
             page=1,
-            size=10,
+            size=200,
         )
         count_notice = await PublicResourcesService.fetch_tender_notice(
             start_date="2025-12-05",
             end_date="2026-01-05",
             db=db,
             page=1,
-            size=10,
+            size=200,
         )
         count_win_candidate = await PublicResourcesService.fetch_win_candidate(
             start_date="2025-12-01",
             end_date="2026-01-09",
             db=db,
             page=1,
-            size=1000,
+            size=200,
         )
         print(f"Fetched {count_win_candidate + count_plan + count_notice} tender notice.")
 

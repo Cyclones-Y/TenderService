@@ -1,26 +1,27 @@
-from typing import Union
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import Depends, Form, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from common.response import Response
 from common.router import APIRouterPro
-from common.vo import PageModel
+from common.vo import DataResponseModel, PageModel
 from config.get_db import get_db
-from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import (
     DeleteTenderModel,
     TenderModel,
     TenderPageQueryModel,
 )
 from module_tender.service.tender_service import TenderService
+from utils.common_util import bytes2file_response
+from utils.response_util import ResponseUtil
 
 # 实例化路由对象
-tenderController = APIRouterPro(prefix='/tender', tags=['招标信息管理'])
+tenderController = APIRouterPro(prefix='/tenders', tags=['招标信息管理'])
 
 
 @tenderController.get(
-    '/list', response_model=PageModel, summary='获取招标信息列表', description='获取招标信息列表'
+    '', response_model=PageModel, summary='获取招标信息列表', description='获取招标信息列表'
 )
 async def get_tender_list(
     page_num: int = Query(1, description='页码'),
@@ -47,11 +48,11 @@ async def get_tender_list(
         end_time=end_time,
     )
     tender_list = await TenderService.get_tender_list(tender_page_query, db)
-    return Response.success(tender_list)
+    return ResponseUtil.success(model_content=tender_list)
 
 
 @tenderController.get(
-    '/{tender_id}', response_model=Union[BizTenderInfo, None], summary='获取招标信息详细信息', description='获取招标信息详细信息'
+    '/{tender_id}', response_model=DataResponseModel[TenderModel], summary='获取招标信息详细信息', description='获取招标信息详细信息'
 )
 async def get_tender_detail(
     tender_id: int, db: AsyncSession = Depends(get_db)
@@ -60,11 +61,13 @@ async def get_tender_detail(
     获取招标信息详细信息
     """
     tender_info = await TenderService.get_tender_detail(tender_id, db)
-    return Response.success(tender_info)
+    if tender_info:
+        return ResponseUtil.success(data=TenderModel.model_validate(tender_info))
+    return ResponseUtil.failure(msg='未找到该招标信息')
 
 
 @tenderController.post(
-    '', response_model=BizTenderInfo, summary='新增招标信息', description='新增招标信息'
+    '', response_model=DataResponseModel[TenderModel], summary='新增招标信息', description='新增招标信息'
 )
 async def add_tender(
     tender: TenderModel, db: AsyncSession = Depends(get_db)
@@ -73,7 +76,7 @@ async def add_tender(
     新增招标信息
     """
     new_tender = await TenderService.add_tender(tender, db)
-    return Response.success(new_tender)
+    return ResponseUtil.success(data=TenderModel.model_validate(new_tender))
 
 
 @tenderController.put(
@@ -86,7 +89,7 @@ async def update_tender(
     修改招标信息
     """
     await TenderService.update_tender(tender, db)
-    return Response.success(msg='修改成功')
+    return ResponseUtil.success(msg='修改成功')
 
 
 @tenderController.delete(
@@ -100,4 +103,28 @@ async def delete_tender(
     """
     delete_tender_model = DeleteTenderModel(tender_ids=tender_ids)
     await TenderService.delete_tender(delete_tender_model, db)
-    return Response.success(msg='删除成功')
+    return ResponseUtil.success(msg='删除成功')
+
+
+@tenderController.post(
+    '/export',
+    summary='导出招标信息列表接口',
+    description='用于导出当前符合查询条件的招标信息列表数据',
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            'description': '流式返回招标信息列表excel文件',
+            'content': {
+                'application/octet-stream': {},
+            },
+        }
+    },
+)
+async def export_tender_list(
+    request: Request,
+    tender_page_query: Annotated[TenderPageQueryModel, Form()],
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    tender_query_result = await TenderService.get_tender_list(tender_page_query, db, is_page=False)
+    tender_export_result = await TenderService.export_tender_list_services(tender_query_result)
+    return ResponseUtil.streaming(data=bytes2file_response(tender_export_result))

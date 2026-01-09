@@ -12,6 +12,8 @@ from module_tender.entity.vo.tender_vo import (
     TenderPageQueryModel,
 )
 from module_tender.service.orchestrator.public_resources_service import PublicResourcesService
+from utils.common_util import SqlalchemyUtil
+from utils.excel_util import ExcelUtil
 
 
 class TenderService:
@@ -21,8 +23,8 @@ class TenderService:
 
     @classmethod
     async def get_tender_list(
-        cls, query_object: TenderPageQueryModel, db: AsyncSession
-    ) -> Union[PageModel, list[BizTenderInfo]]:
+        cls, query_object: TenderPageQueryModel, db: AsyncSession, is_page: bool = True
+    ) -> Union[PageModel, list]:
         """
         获取招标信息列表信息
 
@@ -30,7 +32,7 @@ class TenderService:
         :param db: orm对象
         :return: 招标信息列表信息对象
         """
-        tender_list = await TenderDao.get_tender_list(db, query_object, is_page=True)
+        tender_list = await TenderDao.get_tender_list(db, query_object, is_page=is_page)
 
         return tender_list
 
@@ -103,6 +105,40 @@ class TenderService:
         except Exception as e:
             await db.rollback()
             raise e
+
+    @staticmethod
+    async def export_tender_list_services(tender_list: list) -> bytes:
+        mapping_dict = {
+            'project_code': '项目编号',
+            'project_name': '项目名称',
+            'district': '所在区县',
+            'construction_unit': '建设单位',
+            'project_stage': '所处阶段',
+            'project_type': '项目类型',
+            'bid_control_price': '招标控制价（万元）',
+            'bid_price': '中标价（万元）',
+            'construction_scale': '建设面积（㎡）',
+            'construction_content': '施工内容',
+            'duration': '工期',
+            'registration_deadline': '报名截止时间',
+            'agency': '代理机构',
+            'create_time': '采集时间',
+            'announcement_website': '公告网站',
+            'pre_qualification_url': '预审公告收集网址',
+            'winner_rank_1': '中标排名1',
+            'winner_rank_2': '中标排名2',
+            'winner_rank_3': '中标排名3',
+            'discount_rate': '中标下浮率',
+            'unit_price': '单方造价',
+            'evaluation_report_1': '评标报告_1',
+            'evaluation_report_2': '评标报告_2',
+            'evaluation_report_3': '评标报告_3',
+            'bid_date': '中标日期',
+            'bid_announcement_url': '中标公告网址',
+            'remark': '备注',
+        }
+        list_data = [SqlalchemyUtil.base_to_dict(item, transform_case='camel_to_snake') for item in tender_list]
+        return ExcelUtil.export_list2excel(list_data, mapping_dict)
 
 
     @classmethod

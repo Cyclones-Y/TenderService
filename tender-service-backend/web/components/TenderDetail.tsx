@@ -1,5 +1,4 @@
-import React from 'react';
-import { MOCK_TENDERS } from '../constants';
+import React, { useEffect, useState } from 'react';
 import { TenderStage } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
@@ -10,31 +9,122 @@ interface TenderDetailProps {
   onBack: () => void;
 }
 
-const DetailItem: React.FC<{ label: string; value?: string | number; full?: boolean }> = ({ label, value, full }) => (
+type TenderDetailModel = {
+  tenderId?: number;
+  projectCode?: string;
+  projectName?: string;
+  district?: string;
+  constructionUnit?: string;
+  projectStage?: string;
+  projectType?: string;
+  bidControlPrice?: number | string | null;
+  bidPrice?: number | string | null;
+  constructionScale?: string;
+  constructionContent?: string;
+  tenderScope?: string;
+  duration?: string;
+  registrationDeadline?: string;
+  agency?: string;
+  releaseTime?: string;
+  expectedAnnouncementDate?: string;
+  announcementWebsite?: string;
+  preQualificationUrl?: string;
+  winnerRank1?: string;
+  winnerRank2?: string;
+  winnerRank3?: string;
+  discountRate?: string;
+  unitPrice?: number | string | null;
+  bidDate?: string;
+  bidAnnouncementUrl?: string;
+  remark?: string;
+  createTime?: string;
+};
+
+type DataResponse<T> = {
+  code: number;
+  msg: string;
+  success: boolean;
+  time: string;
+  data?: T;
+};
+
+const DetailItem: React.FC<{ label: string; value?: string | number | null; full?: boolean }> = ({ label, value, full }) => (
   <div className={`flex flex-col gap-2 ${full ? 'col-span-full' : ''}`}>
     <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-    <span className="text-base font-medium text-slate-900 break-words leading-relaxed">{value || '-'}</span>
+    <span className="text-base font-medium text-slate-900 break-words leading-relaxed">{value === 0 ? 0 : (value || '-')}</span>
   </div>
 );
 
 const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
-  const tender = MOCK_TENDERS.find(t => t.id === id);
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [tender, setTender] = useState<TenderDetailModel | null>(null);
 
-  if (!tender) {
+  useEffect(() => {
+    const fetchDetail = async () => {
+      setLoading(true);
+      setErrorText(null);
+      setTender(null);
+      try {
+        const res = await fetch(`/dev-api/tenders/${id}`);
+        const json = (await res.json()) as DataResponse<TenderDetailModel>;
+        if (!res.ok || !json.success || !json.data) {
+          setErrorText(json?.msg || '获取详情失败');
+          return;
+        }
+        setTender(json.data);
+      } catch {
+        setErrorText('获取详情失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchDetail();
+  }, [id]);
+
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <p className="text-lg text-slate-500">未找到相关项目信息</p>
+        <p className="text-lg text-slate-500">加载中...</p>
         <Button onClick={onBack}>返回列表</Button>
       </div>
     );
   }
 
-  const formatMoney = (amount?: number) => {
-    if (amount === undefined) return '-';
-    return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(amount);
+  if (!tender) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <p className="text-lg text-slate-500">{errorText || '未找到相关项目信息'}</p>
+        <Button onClick={onBack}>返回列表</Button>
+      </div>
+    );
+  }
+
+  const toFiniteNumber = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) ? num : null;
   };
 
-  const isFinished = tender.stage === TenderStage.RESULT || tender.stage === TenderStage.CANDIDATE;
+  const formatMoney = (amount: unknown) => {
+    const n = toFiniteNumber(amount);
+    if (n === null) return '-';
+    return `${n.toLocaleString('zh-CN')} 万元`;
+  };
+
+  const isFinished = tender.projectStage === TenderStage.RESULT || tender.projectStage === TenderStage.CANDIDATE;
+  const displayDiscountRate = (() => {
+    if (!tender.discountRate) return '-';
+    if (tender.discountRate.includes('%')) return tender.discountRate;
+    return `${tender.discountRate}%`;
+  })();
+
+  const bidControlPriceNum = toFiniteNumber(tender.bidControlPrice);
+  const bidPriceNum = toFiniteNumber(tender.bidPrice);
+  const unitPriceNum = toFiniteNumber(tender.unitPrice);
+
+  const displayPublishTime = tender.releaseTime || tender.createTime || '-';
+  const displaySourceUrl = tender.bidAnnouncementUrl || tender.preQualificationUrl || '';
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto animate-fade-in">
@@ -43,26 +133,28 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 space-y-3">
-          <h1 className="text-3xl font-bold text-slate-900 leading-tight">{tender.projectName}</h1>
+          <h1 className="text-3xl font-bold text-slate-900 leading-tight">{tender.projectName || '-'}</h1>
           <div className="flex flex-wrap items-center gap-4 text-base text-slate-500">
-            <span className="bg-slate-100 px-3 py-1 rounded-md text-slate-700 font-medium">{tender.projectCode}</span>
+            <span className="bg-slate-100 px-3 py-1 rounded-md text-slate-700 font-medium">{tender.projectCode || '-'}</span>
             <span>•</span>
-            <span className="font-medium">{tender.district}</span>
+            <span className="font-medium">{tender.district || '-'}</span>
             <span>•</span>
-            <span>{tender.publishTime} 发布</span>
+            <span>{displayPublishTime} 发布</span>
             <span>•</span>
             <span className="flex items-center gap-1.5">
               <Globe className="h-4 w-4" />
-              {tender.sourcePlatform || '来源未知'}
+              {tender.announcementWebsite || '来源未知'}
             </span>
           </div>
         </div>
         <div className="flex gap-3">
-           <a href={tender.sourceUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="lg">
-              <ExternalLink className="mr-2 h-5 w-5" /> 查看原始公告
-            </Button>
-           </a>
+          {displaySourceUrl ? (
+            <a href={displaySourceUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="lg">
+                <ExternalLink className="mr-2 h-5 w-5" /> 查看原始公告
+              </Button>
+            </a>
+          ) : null}
         </div>
       </div>
 
@@ -78,12 +170,16 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <DetailItem label="建设单位 (招标人)" value={tender.builder} full />
+                <DetailItem label="建设单位 (招标人)" value={tender.constructionUnit} full />
                 <DetailItem label="招标代理机构" value={tender.agency} full />
                 <DetailItem label="项目类型" value={tender.projectType} />
                 <DetailItem label="工期要求" value={tender.duration} />
-                <DetailItem label="当前阶段" value={tender.stage} />
-                <DetailItem label="信息来源" value={tender.sourcePlatform} />
+                <DetailItem label="当前阶段" value={tender.projectStage} />
+                <DetailItem label="信息来源" value={tender.announcementWebsite} />
+                <DetailItem label="报名截止时间" value={tender.registrationDeadline} />
+                <DetailItem label="建设规模" value={tender.constructionScale} />
+                <DetailItem label="施工内容" value={tender.constructionContent} full />
+                <DetailItem label="招标范围" value={tender.tenderScope} full />
               </div>
             </CardContent>
           </Card>
@@ -98,9 +194,10 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <DetailItem label="中标单位" value={tender.winner} full />
-                  <DetailItem label="中标金额" value={formatMoney(tender.winningAmount)} />
-                  <DetailItem label="下浮率 / 优惠率" value={tender.winRate ? `${tender.winRate}%` : '-'} />
+                  <DetailItem label="中标单位" value={tender.winnerRank1} full />
+                  <DetailItem label="中标金额" value={formatMoney(tender.bidPrice)} />
+                  <DetailItem label="下浮率 / 优惠率" value={displayDiscountRate} />
+                  <DetailItem label="单方造价" value={unitPriceNum === null ? '-' : `${unitPriceNum.toLocaleString('zh-CN')} 万元`} />
                 </div>
               </CardContent>
             </Card>
@@ -114,10 +211,10 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {tender.remarks ? (
+              {tender.remark ? (
                  <div className="flex items-start gap-3 p-4 bg-amber-50 text-amber-900 rounded-lg border border-amber-100 text-base">
                    <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-600" />
-                   {tender.remarks}
+                   {tender.remark}
                  </div>
               ) : (
                 <p className="text-base text-slate-500">无特殊备注信息。</p>
@@ -139,19 +236,19 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
               <div className="space-y-8">
                 <div>
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">招标控制价 (预算)</p>
-                  <p className="text-3xl font-bold tracking-tight text-white">{formatMoney(tender.budget)}</p>
+                  <p className="text-3xl font-bold tracking-tight text-white">{formatMoney(tender.bidControlPrice)}</p>
                 </div>
-                {tender.winningAmount && (
+                {bidPriceNum !== null && (
                   <div>
                     <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">最终中标价</p>
-                    <p className="text-3xl font-bold tracking-tight text-emerald-400">{formatMoney(tender.winningAmount)}</p>
+                    <p className="text-3xl font-bold tracking-tight text-emerald-400">{formatMoney(tender.bidPrice)}</p>
                   </div>
                 )}
-                {tender.budget && tender.winningAmount && (
+                {bidControlPriceNum !== null && bidPriceNum !== null && bidControlPriceNum !== 0 && (
                    <div className="pt-6 border-t border-slate-700/50">
                      <p className="text-sm text-slate-400 mb-1">资金节约率</p>
                      <p className="text-xl font-medium text-emerald-400">
-                       {((tender.budget - tender.winningAmount) / tender.budget * 100).toFixed(2)}%
+                       {(((bidControlPriceNum - bidPriceNum) / bidControlPriceNum) * 100).toFixed(2)}%
                      </p>
                    </div>
                 )}
@@ -171,7 +268,7 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
                 <div className="ml-6">
                   <div className="absolute -left-[9px] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-indigo-500 shadow-sm ring-2 ring-indigo-50"></div>
                   <p className="text-base font-bold text-slate-900">发布公告</p>
-                  <p className="text-sm text-slate-500 mt-0.5">{tender.publishTime}</p>
+                  <p className="text-sm text-slate-500 mt-0.5">{displayPublishTime}</p>
                 </div>
                 <div className="ml-6">
                   <div className="absolute -left-[9px] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-slate-300 shadow-sm"></div>
@@ -182,7 +279,7 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
                   <div className="ml-6">
                     <div className="absolute -left-[9px] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-sm ring-2 ring-emerald-50"></div>
                     <p className="text-base font-bold text-slate-900">中标结果公示</p>
-                    <p className="text-sm text-slate-500 mt-0.5">已完成</p>
+                    <p className="text-sm text-slate-500 mt-0.5">{tender.bidDate || '已完成'}</p>
                   </div>
                 )}
               </div>

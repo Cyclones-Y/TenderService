@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { MOCK_TENDERS, DISTRICTS, STAGES } from '../constants';
-import { Tender, FilterParams, TenderStage } from '../types';
+import React, { useEffect, useState } from 'react';
+import { DISTRICTS, STAGES } from '../constants';
+import { FilterParams, TenderStage } from '../types';
 import { Card, CardContent } from './ui/Card';
 import { Input, Select } from './ui/Input';
 import { Button } from './ui/Button';
@@ -9,6 +9,28 @@ import { Search, RotateCcw, Download, Eye, ChevronLeft, ChevronRight, AlertCircl
 interface TenderListProps {
   onViewDetail: (id: string) => void;
 }
+
+type TenderListRow = {
+  tenderId: number;
+  projectCode?: string;
+  projectName?: string;
+  district?: string;
+  constructionUnit?: string;
+  projectStage?: string;
+  releaseTime?: string;
+};
+
+type PageResponse<T> = {
+  code: number;
+  msg: string;
+  success: boolean;
+  time: string;
+  rows: T[];
+  pageNum: number;
+  pageSize: number;
+  total: number;
+  hasNext: boolean;
+};
 
 const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
   const [filters, setFilters] = useState<FilterParams>({
@@ -25,33 +47,19 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     pageSize: 10
   });
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [rows, setRows] = useState<TenderListRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
-  // Filter Logic
-  const filteredData = useMemo(() => {
-    return MOCK_TENDERS.filter(item => {
-      const matchKeyword = !filters.keyword || item.projectName.includes(filters.keyword);
-      const matchCode = !filters.projectCode || item.projectCode.includes(filters.projectCode);
-      const matchDistrict = !filters.district || item.district === filters.district;
-      const matchStage = !filters.stage || item.stage === filters.stage;
-      const matchDate = (!filters.startDate || item.publishTime >= filters.startDate) &&
-                        (!filters.endDate || item.publishTime <= filters.endDate);
-      
-      return matchKeyword && matchCode && matchDistrict && matchStage && matchDate;
-    });
-  }, [filters]);
-
-  // Pagination Logic
-  const total = filteredData.length;
   const totalPages = Math.ceil(total / pagination.pageSize);
-  const currentData = filteredData.slice(
-    (pagination.current - 1) * pagination.pageSize,
-    pagination.current * pagination.pageSize
-  );
+  const currentData = rows;
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setPagination(prev => ({ ...prev, current: page }));
+    void fetchTenderList({ nextPage: page, nextPageSize: pagination.pageSize });
   };
 
   const handleReset = () => {
@@ -63,37 +71,114 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
       startDate: '',
       endDate: ''
     });
-    setPagination(prev => ({ ...prev, current: 1 }));
+    setPagination({ current: 1, pageSize: pagination.pageSize });
+    setSelectedIds(new Set());
+    void fetchTenderList({ nextPage: 1, nextPageSize: pagination.pageSize, nextFilters: {
+      keyword: '',
+      projectCode: '',
+      district: '',
+      stage: '',
+      startDate: '',
+      endDate: ''
+    }});
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(new Set(currentData.map(d => d.id)));
+      setSelectedIds(new Set(currentData.map(d => d.tenderId)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const handleSelectRow = (id: string) => {
+  const handleSelectRow = (id: number) => {
     const newSet = new Set(selectedIds);
     if (newSet.has(id)) newSet.delete(id);
     else newSet.add(id);
     setSelectedIds(newSet);
   };
 
-  const handleExport = (type: 'selected' | 'all') => {
-    if (type === 'selected' && selectedIds.size === 0) {
-      alert('请先选择要导出的数据');
-      return;
+  const buildQueryParams = (p: { pageNum: number; pageSize: number; f: FilterParams }) => {
+    const params = new URLSearchParams();
+    params.set('page_num', String(p.pageNum));
+    params.set('page_size', String(p.pageSize));
+    if (p.f.keyword) params.set('project_name', p.f.keyword);
+    if (p.f.projectCode) params.set('project_code', p.f.projectCode);
+    if (p.f.district) params.set('district', p.f.district);
+    if (p.f.stage) params.set('project_stage', p.f.stage);
+    if (p.f.startDate) params.set('begin_time', p.f.startDate);
+    if (p.f.endDate) params.set('end_time', p.f.endDate);
+    return params;
+  };
+
+  const fetchTenderList = async (opts?: { nextPage?: number; nextPageSize?: number; nextFilters?: FilterParams }) => {
+    const pageNum = opts?.nextPage ?? pagination.current;
+    const pageSize = opts?.nextPageSize ?? pagination.pageSize;
+    const f = opts?.nextFilters ?? filters;
+    const params = buildQueryParams({ pageNum, pageSize, f });
+
+    setLoading(true);
+    setErrorText(null);
+    try {
+      const res = await fetch(`/dev-api/tenders?${params.toString()}`);
+      const json = (await res.json()) as PageResponse<TenderListRow>;
+      if (!res.ok || !json.success) {
+        setErrorText(json?.msg || '查询失败');
+        setRows([]);
+        setTotal(0);
+        return;
+      }
+      setRows(json.rows || []);
+      setTotal(json.total || 0);
+      setSelectedIds(new Set());
+    } catch {
+      setErrorText('查询失败');
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-    const count = type === 'selected' ? selectedIds.size : total;
-    const loadingBtn = document.getElementById(`export-btn-${type}`) as HTMLButtonElement;
-    if(loadingBtn) loadingBtn.disabled = true;
-    
-    setTimeout(() => {
-      alert(`成功导出 ${count} 条数据至 Excel 文件`);
-      if(loadingBtn) loadingBtn.disabled = false;
-    }, 1000);
+  };
+
+  useEffect(() => {
+    void fetchTenderList();
+  }, []);
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportAll = async () => {
+    const params = buildQueryParams({ pageNum: pagination.current, pageSize: pagination.pageSize, f: filters });
+    const loadingBtn = document.getElementById('export-btn-all') as HTMLButtonElement | null;
+    if (loadingBtn) loadingBtn.disabled = true;
+    try {
+      const res = await fetch('/dev-api/tenders/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        },
+        body: params.toString(),
+      });
+      if (!res.ok) {
+        alert('导出失败');
+        return;
+      }
+      const blob = await res.blob();
+      const filename = `招标信息_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      downloadBlob(blob, filename);
+    } catch {
+      alert('导出失败');
+    } finally {
+      if (loadingBtn) loadingBtn.disabled = false;
+    }
   };
 
   const getStageBadgeColor = (stage: string) => {
@@ -155,7 +240,10 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
               <Button variant="secondary" onClick={handleReset} size="md">
                 <RotateCcw className="mr-2 h-4 w-4" /> 重置
               </Button>
-              <Button onClick={() => setPagination(p => ({...p, current: 1}))} size="md">
+              <Button onClick={() => {
+                setPagination(p => ({...p, current: 1}));
+                void fetchTenderList({ nextPage: 1 });
+              }} size="md" disabled={loading}>
                 <Search className="mr-2 h-4 w-4" /> 查询
               </Button>
             </div>
@@ -171,8 +259,8 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
             id="export-btn-selected"
             variant="outline" 
             size="md" 
-            onClick={() => handleExport('selected')}
-            disabled={selectedIds.size === 0}
+            onClick={() => alert('当前仅支持按筛选条件导出全部数据')}
+            disabled={true}
           >
             <Download className="mr-2 h-4 w-4" /> 导出选中 ({selectedIds.size})
           </Button>
@@ -180,7 +268,8 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
             id="export-btn-all"
             variant="outline" 
             size="md" 
-            onClick={() => handleExport('all')}
+            onClick={handleExportAll}
+            disabled={loading}
           >
             <Download className="mr-2 h-4 w-4" /> 导出全部
           </Button>
@@ -216,19 +305,19 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
                   <td colSpan={8} className="px-6 py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-3">
                       <AlertCircle className="h-10 w-10 text-slate-300" />
-                      <p className="text-base">暂无数据，请尝试调整筛选条件</p>
+                      <p className="text-base">{loading ? '加载中...' : (errorText || '暂无数据，请尝试调整筛选条件')}</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 currentData.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                  <tr key={item.tenderId} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="p-4">
                       <input 
                         type="checkbox" 
                         className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        checked={selectedIds.has(item.id)}
-                        onChange={() => handleSelectRow(item.id)}
+                        checked={selectedIds.has(item.tenderId)}
+                        onChange={() => handleSelectRow(item.tenderId)}
                       />
                     </td>
                     <td className="px-6 py-5 text-slate-500">
@@ -238,25 +327,25 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
                       <div className="flex flex-col gap-1">
                         <span 
                           className="hover:text-indigo-600 cursor-pointer transition-colors truncate max-w-[320px] text-base"
-                          onClick={() => onViewDetail(item.id)}
+                          onClick={() => onViewDetail(String(item.tenderId))}
                           title={item.projectName}
                         >
-                          {item.projectName}
+                          {item.projectName || '-'}
                         </span>
-                        <span className="text-sm text-slate-400">{item.projectCode}</span>
+                        <span className="text-sm text-slate-400">{item.projectCode || '-'}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5">{item.district}</td>
-                    <td className="px-6 py-5 truncate max-w-[200px] text-slate-600" title={item.builder}>{item.builder}</td>
+                    <td className="px-6 py-5">{item.district || '-'}</td>
+                    <td className="px-6 py-5 truncate max-w-[200px] text-slate-600" title={item.constructionUnit}>{item.constructionUnit || '-'}</td>
                     <td className="px-6 py-5">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStageBadgeColor(item.stage)}`}>
-                        {item.stage}
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStageBadgeColor(item.projectStage || '')}`}>
+                        {item.projectStage || '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-slate-500">{item.publishTime}</td>
+                    <td className="px-6 py-5 text-slate-500">{item.releaseTime || '-'}</td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => onViewDetail(item.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => onViewDetail(String(item.tenderId))}>
                           <Eye className="h-4 w-4 mr-1.5" /> 详情
                         </Button>
                       </div>
@@ -277,7 +366,11 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
             <select 
               className="h-9 rounded-md border-slate-200 text-sm focus:ring-indigo-500 focus:border-indigo-500 px-2"
               value={pagination.pageSize}
-              onChange={(e) => setPagination({ current: 1, pageSize: Number(e.target.value) })}
+              onChange={(e) => {
+                const nextPageSize = Number(e.target.value);
+                setPagination({ current: 1, pageSize: nextPageSize });
+                void fetchTenderList({ nextPage: 1, nextPageSize });
+              }}
             >
               <option value={10}>10条/页</option>
               <option value={20}>20条/页</option>

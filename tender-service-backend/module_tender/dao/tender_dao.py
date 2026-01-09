@@ -1,3 +1,4 @@
+from datetime import datetime, time
 from typing import Union
 
 from sqlalchemy import delete, select, update
@@ -7,6 +8,7 @@ from common.vo import PageModel
 from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import TenderModel, TenderPageQueryModel
 from utils.page_util import PageUtil
+from utils.time_format_util import TimeFormatUtil
 
 
 class TenderDao:
@@ -65,8 +67,13 @@ class TenderDao:
             query = query.where(BizTenderInfo.district == query_object.district)
         if query_object.project_stage:
             query = query.where(BizTenderInfo.project_stage == query_object.project_stage)
+        if query_object.begin_time and query_object.end_time:
+            start_date = TimeFormatUtil.parse_date(query_object.begin_time)
+            end_date = TimeFormatUtil.parse_date(query_object.end_time)
+            if start_date and end_date:
+                query = query.where(BizTenderInfo.release_time.between(start_date, end_date))
         
-        query = query.order_by(BizTenderInfo.create_time.desc())
+        query = query.order_by(BizTenderInfo.release_time.desc(), BizTenderInfo.create_time.desc())
         
         tender_list = await PageUtil.paginate(db, query, query_object.page_num, query_object.page_size, is_page)
 
