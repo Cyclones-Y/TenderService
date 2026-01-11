@@ -30,6 +30,7 @@ dependencies = [
     "langchain-deepseek>=1.0.1",
     "parsel>=1.10.0",
     "pymupdf>=1.24.10",
+    "uvicorn[standard]>=0.18.0",
 ]
 
 [dependency-groups]

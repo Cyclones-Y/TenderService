@@ -2189,6 +2189,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "sqlglot", extra = ["rs"] },
     { name = "user-agents" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.dev-dependencies]
@@ -2223,6 +2224,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.45" },
     { name = "sqlglot", extras = ["rs"], specifier = "==28.5.0" },
     { name = "user-agents", specifier = "==2.2.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.18.0" },
 ]
 
 [package.metadata.requires-dev]
