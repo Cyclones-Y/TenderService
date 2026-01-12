@@ -113,6 +113,12 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
     return `${n.toLocaleString('zh-CN')} 万元`;
   };
 
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    if (dateStr.includes('T')) return dateStr.split('T')[0];
+    return dateStr;
+  };
+
   const isFinished = tender.projectStage === TenderStage.RESULT || tender.projectStage === TenderStage.CANDIDATE;
   const displayDiscountRate = (() => {
     if (!tender.discountRate) return '-';

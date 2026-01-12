@@ -79,8 +79,10 @@ class TenderDao:
         """
         query = select(BizTenderInfo)
         if query_object.tender_ids:
-            tender_ids_list = [int(tid) for tid in query_object.tender_ids.split(',')]
-            query = query.where(BizTenderInfo.tender_id.in_(tender_ids_list))
+            id_list = query_object.tender_ids.split(',')
+            ids = [int(i) for i in id_list if i.strip()]
+            if ids:
+                query = query.where(BizTenderInfo.tender_id.in_(ids))
         if query_object.project_name:
             query = query.where(BizTenderInfo.project_name.like(f'%{query_object.project_name}%'))
         if query_object.project_code:

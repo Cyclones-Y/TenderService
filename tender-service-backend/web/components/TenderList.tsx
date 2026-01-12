@@ -161,7 +161,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     const loadingBtn = document.getElementById('export-btn-all') as HTMLButtonElement | null;
     if (loadingBtn) loadingBtn.disabled = true;
     try {
-      const res = await fetch('/dev-api/tenders/export', {
+      const res = await fetch(getApiUrl('/tenders/export'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -192,7 +192,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     if (loadingBtn) loadingBtn.disabled = true;
     
     try {
-      const res = await fetch('/dev-api/tenders/export', {
+      const res = await fetch(getApiUrl('/tenders/export'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
