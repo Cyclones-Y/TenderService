@@ -31,6 +31,7 @@ async def get_tender_list(
     project_code: str = Query(None, description='项目编号'),
     district: str = Query(None, description='所在区县'),
     project_stage: str = Query(None, description='所处阶段'),
+    project_type: str = Query(None, description='项目类型'),
     begin_time: str = Query(None, description='开始时间'),
     end_time: str = Query(None, description='结束时间'),
     db: AsyncSession = Depends(get_db),
@@ -45,6 +46,7 @@ async def get_tender_list(
         project_code=project_code,
         district=district,
         project_stage=project_stage,
+        project_type=project_type,
         begin_time=begin_time,
         end_time=end_time,
     )

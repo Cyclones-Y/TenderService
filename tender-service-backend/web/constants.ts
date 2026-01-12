@@ -6,6 +6,10 @@ export const DISTRICTS = [
 
 export const STAGES = Object.values(TenderStage);
 
+export const PROJECT_TYPES = [
+  '工程', '监理', '诊疗', '设计', '养护', '租摆', '有害生物防治', '劳务'
+];
+
 // Helper to generate random date within last 30 days
 const getRandomDate = () => {
   const date = new Date();
@@ -26,7 +30,7 @@ export const MOCK_TENDERS: Tender[] = Array.from({ length: 50 }).map((_, i) => {
     agency: '某某招标代理有限公司',
     stage: stage,
     publishTime: getRandomDate(),
-    projectType: ['工程', '服务', '货物'][Math.floor(Math.random() * 3)],
+    projectType: PROJECT_TYPES[Math.floor(Math.random() * PROJECT_TYPES.length)],
     budget: Math.floor(Math.random() * 10000000) + 500000,
     winningAmount: isFinished ? Math.floor(Math.random() * 9000000) + 400000 : undefined,
     winner: isFinished ? '某某建筑工程有限公司' : undefined,

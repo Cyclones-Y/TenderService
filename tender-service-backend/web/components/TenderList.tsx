@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DISTRICTS, STAGES } from '../constants';
+import { DISTRICTS, STAGES, PROJECT_TYPES } from '../constants';
 import { FilterParams, TenderStage } from '../types';
 import { Card, CardContent } from './ui/Card';
 import { Input, Select } from './ui/Input';
@@ -107,6 +107,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     if (p.f.projectCode) params.set('project_code', p.f.projectCode);
     if (p.f.district) params.set('district', p.f.district);
     if (p.f.stage) params.set('project_stage', p.f.stage);
+    if (p.f.projectType) params.set('project_type', p.f.projectType);
     if (p.f.startDate) params.set('begin_time', p.f.startDate);
     if (p.f.endDate) params.set('end_time', p.f.endDate);
     return params;
@@ -253,29 +254,32 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
               value={filters.stage}
               onChange={e => setFilters(prev => ({ ...prev, stage: e.target.value }))}
             />
-            <div className="lg:col-span-2 flex gap-4 items-end">
-              <Input 
-                type="date" 
-                label="发布开始时间" 
-                value={filters.startDate}
-                onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-              />
-              <span className="pb-3 text-slate-400 font-medium">-</span>
-              <Input 
-                type="date" 
-                label="发布结束时间" 
-                value={filters.endDate}
-                onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-              />
-            </div>
-            <div className="lg:col-span-2 flex items-end justify-end gap-3">
-              <Button variant="secondary" onClick={handleReset} size="md">
+            <Select 
+              label="项目类型" 
+              options={PROJECT_TYPES} 
+              value={filters.projectType}
+              onChange={e => setFilters(prev => ({ ...prev, projectType: e.target.value }))}
+            />
+            <Input 
+              type="date" 
+              label="发布开始时间" 
+              value={filters.startDate}
+              onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            />
+            <Input 
+              type="date" 
+              label="发布结束时间" 
+              value={filters.endDate}
+              onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            />
+            <div className="flex items-end gap-3">
+              <Button variant="secondary" onClick={handleReset} size="md" className="flex-1">
                 <RotateCcw className="mr-2 h-4 w-4" /> 重置
               </Button>
               <Button onClick={() => {
                 setPagination(p => ({...p, current: 1}));
                 void fetchTenderList({ nextPage: 1 });
-              }} size="md" disabled={loading}>
+              }} size="md" disabled={loading} className="flex-1">
                 <Search className="mr-2 h-4 w-4" /> 查询
               </Button>
             </div>

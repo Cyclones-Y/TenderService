@@ -91,6 +91,8 @@ class TenderDao:
             query = query.where(BizTenderInfo.district == query_object.district)
         if query_object.project_stage:
             query = query.where(BizTenderInfo.project_stage == query_object.project_stage)
+        if query_object.project_type:
+            query = query.where(BizTenderInfo.project_type == query_object.project_type)
         if query_object.begin_time and query_object.end_time:
             start_date = TimeFormatUtil.parse_date(query_object.begin_time)
             end_date = TimeFormatUtil.parse_date(query_object.end_time)

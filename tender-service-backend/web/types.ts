@@ -33,6 +33,7 @@ export interface FilterParams {
   projectCode: string;
   district: string;
   stage: string;
+  projectType: string;
   startDate: string;
   endDate: string;
 }
