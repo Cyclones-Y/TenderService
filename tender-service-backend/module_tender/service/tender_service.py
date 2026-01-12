@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.vo import PageModel
 from exceptions.exception import ServiceException
+from module_admin.entity.do.job_do import SysJobLog
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import (
@@ -155,10 +157,19 @@ class TenderService:
         month_new = await TenderDao.get_dashboard_month_new(db, month_start)
         total_amount_wan = await TenderDao.get_dashboard_total_amount_wan(db)
         top_district = await TenderDao.get_dashboard_top_district(db)
-        last_sync_time = await TenderDao.get_dashboard_last_sync_time(db)
+        
+        # 获取上次同步时间（从sys_job_log获取最新的一条记录）
+        last_sync_job = (await db.execute(select(SysJobLog).order_by(desc(SysJobLog.create_time)).limit(1))).scalars().first()
+        last_sync_time = last_sync_job.create_time if last_sync_job else None
+        
         last_sync_minutes_ago = 0
+        last_sync_hours_ago = 0.0
+        last_sync_time_str = None
         if last_sync_time:
-            last_sync_minutes_ago = max(0, int((now - last_sync_time).total_seconds() // 60))
+            diff_seconds = (now - last_sync_time).total_seconds()
+            last_sync_minutes_ago = max(0, int(diff_seconds // 60))
+            last_sync_hours_ago = max(0.0, round(diff_seconds / 3600, 1))
+            last_sync_time_str = last_sync_time.strftime('%Y-%m-%d %H:%M')
 
         district_rows = await TenderDao.get_dashboard_district_stats(db)
         stage_rows = await TenderDao.get_dashboard_stage_stats(db)
@@ -176,6 +187,8 @@ class TenderService:
             total_amount_billion=round(total_amount_wan / 10000, 2),
             top_district=top_district or '-',
             last_sync_minutes_ago=last_sync_minutes_ago,
+            last_sync_hours_ago=last_sync_hours_ago,
+            last_sync_time=last_sync_time_str,
             district_stats=[DistrictStatModel(name=n, value=v) for n, v in district_rows],
             stage_stats=[StageStatModel(name=n, value=v) for n, v in stage_rows],
             trend_stats=trend_stats,

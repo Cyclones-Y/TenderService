@@ -182,6 +182,37 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     }
   };
 
+  const handleExportSelected = async () => {
+    if (selectedIds.size === 0) return;
+    
+    const params = new URLSearchParams();
+    params.set('tender_ids', Array.from(selectedIds).join(','));
+    
+    const loadingBtn = document.getElementById('export-btn-selected') as HTMLButtonElement | null;
+    if (loadingBtn) loadingBtn.disabled = true;
+    
+    try {
+      const res = await fetch('/dev-api/tenders/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        },
+        body: params.toString(),
+      });
+      if (!res.ok) {
+        alert('导出失败');
+        return;
+      }
+      const blob = await res.blob();
+      const filename = `招标信息_选中_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      downloadBlob(blob, filename);
+    } catch {
+      alert('导出失败');
+    } finally {
+      if (loadingBtn) loadingBtn.disabled = false;
+    }
+  };
+
   const getStageBadgeColor = (stage: string) => {
     switch (stage) {
       case TenderStage.ANNOUNCEMENT: return 'bg-blue-100 text-blue-700 border-blue-200';
@@ -260,8 +291,8 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
             id="export-btn-selected"
             variant="outline" 
             size="md" 
-            onClick={() => alert('当前仅支持按筛选条件导出全部数据')}
-            disabled={true}
+            onClick={handleExportSelected}
+            disabled={selectedIds.size === 0 || loading}
           >
             <Download className="mr-2 h-4 w-4" /> 导出选中 ({selectedIds.size})
           </Button>

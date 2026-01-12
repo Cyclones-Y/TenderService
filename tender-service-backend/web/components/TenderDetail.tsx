@@ -177,7 +177,7 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
                 <DetailItem label="工期要求" value={tender.duration} />
                 <DetailItem label="当前阶段" value={tender.projectStage} />
                 <DetailItem label="信息来源" value={tender.announcementWebsite} />
-                <DetailItem label="报名截止时间" value={tender.registrationDeadline} />
+                <DetailItem label="报名截止时间" value={formatDate(tender.registrationDeadline)} />
                 <DetailItem label="建设规模" value={tender.constructionScale} />
                 <DetailItem label="施工内容" value={tender.constructionContent} full />
                 <DetailItem label="招标范围" value={tender.tenderScope} full />
@@ -195,7 +195,50 @@ const TenderDetail: React.FC<TenderDetailProps> = ({ id, onBack }) => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <DetailItem label="中标单位" value={tender.winnerRank1} full />
+                  <div className="col-span-full">
+                    <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3 block">中标候选人排名</span>
+                    <div className="flex flex-col rounded-lg border border-slate-200 overflow-hidden bg-white">
+                      {tender.winnerRank1 ? (
+                        <div className="flex items-center justify-between p-4 bg-indigo-50/30 border-b border-indigo-100/50 transition-colors hover:bg-indigo-50/60">
+                          <div className="flex items-center gap-4 overflow-hidden">
+                            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-sm font-bold shadow-sm shrink-0">
+                              1
+                            </div>
+                            <span className="font-semibold text-slate-900 text-base truncate">{tender.winnerRank1}</span>
+                          </div>
+                          <div className="shrink-0 ml-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 border border-indigo-200/50">
+                              中标
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-slate-500 text-sm bg-slate-50/50">-</div>
+                      )}
+                      
+                      {tender.winnerRank2 && (
+                        <div className="flex items-center p-3.5 border-b border-slate-100 transition-colors hover:bg-slate-50">
+                          <div className="flex items-center gap-4 overflow-hidden w-full">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-xs font-bold shrink-0 border border-slate-200">
+                              2
+                            </div>
+                            <span className="text-slate-700 text-sm font-medium truncate">{tender.winnerRank2}</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {tender.winnerRank3 && (
+                        <div className="flex items-center p-3.5 transition-colors hover:bg-slate-50">
+                          <div className="flex items-center gap-4 overflow-hidden w-full">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-xs font-bold shrink-0 border border-slate-200">
+                              3
+                            </div>
+                            <span className="text-slate-700 text-sm font-medium truncate">{tender.winnerRank3}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <DetailItem label="中标金额" value={formatMoney(tender.bidPrice)} />
                   <DetailItem label="下浮率 / 优惠率" value={displayDiscountRate} />
                   <DetailItem label="单方造价" value={unitPriceNum === null ? '-' : `${unitPriceNum.toLocaleString('zh-CN')} 万元`} />

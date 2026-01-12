@@ -19,6 +19,7 @@ type DashboardData = {
   totalAmountBillion: number;
   topDistrict: string;
   lastSyncMinutesAgo: number;
+  lastSyncHoursAgo: number;
   districtStats: DistrictStat[];
   stageStats: StageStat[];
   trendStats: TrendStat[];

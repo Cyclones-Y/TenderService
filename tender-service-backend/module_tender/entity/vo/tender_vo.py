@@ -51,6 +51,7 @@ class TenderQueryModel(TenderModel):
 
     begin_time: str | None = Field(default=None, description='开始时间')
     end_time: str | None = Field(default=None, description='结束时间')
+    tender_ids: str | None = Field(default=None, description='选中的招标信息ID集合，逗号分隔')
 
 
 class TenderPageQueryModel(TenderQueryModel):
@@ -99,8 +100,10 @@ class TenderDashboardModel(BaseModel):
     total_projects: int = Field(description='总招标项目数')
     month_new: int = Field(description='本月新增')
     total_amount_billion: float = Field(description='涉及金额（亿元）')
-    top_district: str = Field(description='活跃区县Top1')
-    last_sync_minutes_ago: int = Field(description='上次同步距今分钟数')
+    top_district: str = Field(description='活跃区县')
+    last_sync_minutes_ago: int = Field(description='上次同步时间（分钟前）')
+    last_sync_hours_ago: float = Field(description='上次同步时间（小时前）')
+    last_sync_time: str | None = Field(description='上次同步具体时间')
     district_stats: list[DistrictStatModel] = Field(description='区域分布统计')
-    stage_stats: list[StageStatModel] = Field(description='阶段分布统计')
-    trend_stats: list[TrendStatModel] = Field(description='近30天趋势')
+    stage_stats: list[StageStatModel] = Field(description='项目阶段分布统计')
+    trend_stats: list[TrendStatModel] = Field(description='趋势统计')

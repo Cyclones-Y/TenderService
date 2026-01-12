@@ -15,6 +15,7 @@ type TrendStat = { date: string; count: number };
 
 type DashboardData = {
   lastSyncMinutesAgo: number;
+  lastSyncHoursAgo: number;
   trendStats: TrendStat[];
 };
 
@@ -73,9 +74,10 @@ const MainContent: React.FC = () => {
       try {
         const res = await fetch(getApiUrl('/tenders/dashboard'));
         const json = (await res.json()) as DataResponse<DashboardData>;
-        const minutes = json?.data?.lastSyncMinutesAgo;
-        if (typeof minutes === 'number' && Number.isFinite(minutes)) {
-          setLastSyncText(`上次同步: ${Math.max(0, Math.floor(minutes))} 分钟前`);
+        const syncTime = json?.data?.lastSyncTime;
+        
+        if (syncTime) {
+          setLastSyncText(`上次同步: ${syncTime}`);
         } else {
           setLastSyncText('上次同步: 未知');
         }
