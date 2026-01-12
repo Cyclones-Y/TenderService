@@ -7,13 +7,19 @@ services:
       - .env.dockerpg
     environment:
         POSTGRES_DB: ${DB_DATABASE:-rujing-tender-service}
-        POSTGRES_PASSWORD: ${DB_PASSWORD:-rujing2025.}
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: rujing2025.
         POSTGRES_INITDB_ARGS: --encoding=UTF8 --lc-collate=C --lc-ctype=C
     ports:
       - "5432:5432"
     volumes:
       - /Rujing/deploy/data/pgdata:/var/lib/postgresql/data
       - ./sql/ruoyi-fastapi-pg.sql:/docker-entrypoint-initdb.d/ruoyi-fastapi-pg.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d ${DB_DATABASE:-rujing-tender-service}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - ruoyi-net
 
