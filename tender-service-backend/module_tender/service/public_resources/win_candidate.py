@@ -1,8 +1,6 @@
 import asyncio
-import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
 
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.structured_entity.win_candidate_entity import WinCandidateEntity
@@ -18,21 +16,23 @@ class WinCandidateFetcher(PublicResourcesBase):
 
     PROJECT_STAGE = "中标候选人"
 
-    _default_ai_entity = lambda: WinCandidateEntity(
-        constructionContent="",
-        district="市级",
-        duration="",
-        projectType="",
-        bidControlPrice=0.0,
-        constructionScale="",
-        bidPrice=0.0,
-        tendererOrAgency="",
-        winner_rank_1="",
-        winner_rank_2="",
-        winner_rank_3="",
-        discountRate="0.00%",
-        unitPrice=0.0,
-    )
+    @staticmethod
+    def _default_ai_entity() -> WinCandidateEntity:
+        return WinCandidateEntity(
+            constructionContent="",
+            district="市级",
+            duration="",
+            projectType="",
+            bidControlPrice=0.0,
+            constructionScale="",
+            bidPrice=0.0,
+            tendererOrAgency="",
+            winner_rank_1="",
+            winner_rank_2="",
+            winner_rank_3="",
+            discountRate="0.00%",
+            unitPrice=0.0,
+        )
 
     @classmethod
     async def fetch(
@@ -122,6 +122,7 @@ class WinCandidateFetcher(PublicResourcesBase):
             except Exception:
                 txt = ""
 
+        evaluation_report_1, evaluation_report_2, evaluation_report_3 = [*pdf_links[:3], None, None, None][:3]
 
         # 使用 AI 提取补充字段
         ai_source = "中标候选人公告内容："+ content_str + "中标候选人详细内容："+ (("\n" + txt) if txt else "")
@@ -148,6 +149,6 @@ class WinCandidateFetcher(PublicResourcesBase):
             "unitPrice": ai_result.unitPrice,
             "announcementWebsite": "公共资源",
             "bidAnnouncementUrl": cls._abs_url(json_item.get("link")),
-            "evaluationReport1": pdf_links,
+            "evaluationReport1": evaluation_report_1,
             "remark": remark_text,
         }
