@@ -75,7 +75,8 @@ class WinCandidateFetcher(PublicResourcesBase):
                 discount_rate=parsed.get("discountRate"),
                 unit_price=parsed.get("unitPrice"),
                 announcement_website=parsed.get("announcementWebsite"),
-                pre_qualification_url=parsed.get("preQualificationUrl"),
+                bid_announcement_url=parsed.get("bidAnnouncementUrl"),
+                evaluation_report_1=parsed.get("evaluationReport1"),
                 release_time=cls._parse_release_date(item.get("releaseDate")),
                 bid_date=cls._parse_release_date(item.get("releaseDate")),
                 registration_deadline=cls._parse_release_date(item.get("noticeEndTime")),
@@ -146,6 +147,7 @@ class WinCandidateFetcher(PublicResourcesBase):
             "discountRate": ai_result.discountRate,
             "unitPrice": ai_result.unitPrice,
             "announcementWebsite": "公共资源",
-            "preQualificationUrl": cls._abs_url(json_item.get("link")),
+            "bidAnnouncementUrl": cls._abs_url(json_item.get("link")),
+            "evaluationReport1": pdf_links,
             "remark": remark_text,
         }

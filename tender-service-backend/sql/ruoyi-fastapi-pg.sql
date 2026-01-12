@@ -307,13 +307,16 @@ insert into sys_menu values(1013, '菜单新增', 102, '2',  '', '', '', '', 1, 
     expected_announcement_date varchar(100) default null,
      announcement_website varchar(100) default null,
      pre_qualification_url varchar(255) default null,
-     winner_rank_1 varchar(100) default null,
-     winner_rank_2 varchar(100) default null,
-     winner_rank_3 varchar(100) default null,
-     discount_rate varchar(20) default null,
-     unit_price numeric(18, 2) default null,
-     bid_date date default null,
-     bid_announcement_url varchar(255) default null,
+    winner_rank_1 varchar(100) default null,
+    winner_rank_2 varchar(100) default null,
+    winner_rank_3 varchar(100) default null,
+    evaluation_report_1 varchar(255) default null,
+    evaluation_report_2 varchar(255) default null,
+    evaluation_report_3 varchar(255) default null,
+    discount_rate varchar(20) default null,
+    unit_price numeric(18, 2) default null,
+    bid_date date default null,
+    bid_announcement_url varchar(255) default null,
      create_by varchar(64) default '',
      create_time timestamp(0),
      update_by varchar(64) default '',
@@ -343,6 +346,9 @@ comment on column biz_tender_info.expected_announcement_date is '预计招标公
  comment on column biz_tender_info.winner_rank_1 is '中标排名1';
  comment on column biz_tender_info.winner_rank_2 is '中标排名2';
  comment on column biz_tender_info.winner_rank_3 is '中标排名3';
+ comment on column biz_tender_info.evaluation_report_1 is '评标报告_1';
+ comment on column biz_tender_info.evaluation_report_2 is '评标报告_2';
+ comment on column biz_tender_info.evaluation_report_3 is '评标报告_3';
  comment on column biz_tender_info.discount_rate is '中标下浮率（%）';
  comment on column biz_tender_info.unit_price is '单方造价（万元/㎡或万元/项）';
  comment on column biz_tender_info.bid_date is '中标日期';

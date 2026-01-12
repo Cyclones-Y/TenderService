@@ -146,6 +146,24 @@ class BizTenderInfo(Base):
         server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
         comment='中标排名3',
     )
+    evaluation_report_1 = Column(
+        String(255),
+        nullable=True,
+        server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
+        comment='评标报告_1',
+    )
+    evaluation_report_2 = Column(
+        String(255),
+        nullable=True,
+        server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
+        comment='评标报告_2',
+    )
+    evaluation_report_3 = Column(
+        String(255),
+        nullable=True,
+        server_default=SqlalchemyUtil.get_server_default_null(DataBaseConfig.db_type),
+        comment='评标报告_3',
+    )
 
     discount_rate = Column(
         String(20),
