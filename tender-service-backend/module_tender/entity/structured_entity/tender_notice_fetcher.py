@@ -13,4 +13,4 @@ class TenderNoticeFetcher(BaseModel):
     tenderScope: str = Field(title="招标范围", description="招标范围")
     constructionContent: str = Field(title="施工内容", description="施工内容")
     duration: str = Field(title="工期", description="工期")
-    registrationDeadline: str = Field(title="报名截止时间", description="投标文件的截止时间")
+    registrationDeadline: str = Field(title="报名截止时间", description="该截止时间为资格预算文件获取的截止时间，如：凡有意参与且符合本章第3条规定的资格条件，方可于 2026年01月12日09时00分 至 2026年01月19日16时00分 ，截止时间则为：2026年01月19日16时00分")

@@ -50,7 +50,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
                 bid_control_price=parsed.get("bidControlPrice"),
                 construction_scale=parsed.get("constructionScale"),
                 duration=parsed.get("duration"),
-                registration_deadline=cls._parse_release_date(item.get("noticeEndTime")),
+                registration_deadline=cls._parse_registration_deadline(parsed.get("registrationDeadline")),
                 agency=parsed.get('agency'),
                 construction_content=parsed.get("constructionContent"),
                 tender_scope=parsed.get("tenderScope"),
@@ -233,6 +233,7 @@ class TenderNoticeFetcher(PublicResourcesBase):
             "duration": ai_result.duration or duration,  # 优先用 AI 提取的，如果为空则用正则兜底（或反之，视准确率而定）
             "agency": agent_unit,
             "bidControlPrice": ai_result.bidControlPrice,
+            "registrationDeadline": ai_result.registrationDeadline,
             "constructionScale": ai_result.constructionScale or construction_scale,
             "constructionContent": ai_result.constructionContent,
             "tenderScope": ai_result.tenderScope or tender_scope,

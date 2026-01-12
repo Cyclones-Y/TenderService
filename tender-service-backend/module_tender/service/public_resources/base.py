@@ -6,6 +6,7 @@ import re
 from curl_cffi import requests as curl_requests
 from exceptions.exception import ServiceException
 
+
 class PublicResourcesBase:
     @staticmethod
     def _abs_url(link: str) -> str:
@@ -23,6 +24,22 @@ class PublicResourcesBase:
             return datetime.datetime.strptime(str(s).strip(), "%Y-%m-%d").date()
         except ValueError:
             return None
+
+    @staticmethod
+    def _parse_registration_deadline(s: str) -> datetime.datetime | None:
+        if not s:
+            return None
+
+        try:
+            # Support Chinese date format: 2026年01月19日16时00分
+            dt = datetime.datetime.strptime(str(s).strip(), "%Y年%m月%d日%H时%M分")
+            return dt.replace(second=0, microsecond=0)
+        except ValueError:
+            try:
+                dt = datetime.datetime.strptime(str(s).strip(), "%Y-%m-%d %H:%M")
+                return dt.replace(second=0, microsecond=0)
+            except ValueError:
+                return None
 
     @staticmethod
     def _sanitize_text_for_ai(text: str, max_len: int = 6000) -> str:
@@ -55,14 +72,14 @@ class PublicResourcesBase:
 
     @classmethod
     async def request_list(
-        cls,
-        channel_id: str,
-        channel_third: str,
-        ext: str,
-        page: int,
-        size: int,
-        starttime: str,
-        endtime: str,
+            cls,
+            channel_id: str,
+            channel_third: str,
+            ext: str,
+            page: int,
+            size: int,
+            starttime: str,
+            endtime: str,
     ) -> list:
         url = "https://ggzyfw.beijing.gov.cn/elasticsearch/searchList"
         payload = {

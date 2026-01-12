@@ -79,7 +79,7 @@ class WinCandidateFetcher(PublicResourcesBase):
                 evaluation_report_1=parsed.get("evaluationReport1"),
                 release_time=cls._parse_release_date(item.get("releaseDate")),
                 bid_date=cls._parse_release_date(item.get("releaseDate")),
-                registration_deadline=cls._parse_release_date(item.get("noticeEndTime")),
+                # registration_deadline=cls._parse_release_date(item.get("noticeEndTime")),
                 remark=parsed.get("remark"),
             )
             try:
