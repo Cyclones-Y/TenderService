@@ -2,29 +2,13 @@ import os
 from time import sleep
 from typing import Any, Type, TypeVar
 
-from langchain.agents import create_agent
-from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
 
 from exceptions.exception import ServiceException
+from llms.deepseek import DeepSeekModel
 from utils.log_util import logger
 
 T = TypeVar("T", bound=BaseModel)
-
-
-def build_deepseek_model() -> ChatDeepSeek:
-    api_key = "sk-bab3d0968b544542b626ee2f13cd61f6"
-    base_url = os.getenv("DEEPSEEK_BASE_URL")
-    if not api_key:
-        raise RuntimeError("缺少环境变量 DEEPSEEK_API_KEY")
-    return ChatDeepSeek(model="deepseek-chat", api_key=api_key, base_url=base_url)
-
-
-def build_structured_agent(response_format: Type[T]) -> Any:
-    model = build_deepseek_model()
-    agent = create_agent(model=model, response_format=response_format)
-    return agent
-
 
 def extract_structured_data(
     text: str,
@@ -55,7 +39,7 @@ def extract_structured_data(
 
     for attempt in range(max_retries + 1):
         try:
-            agent = build_structured_agent(response_format=response_model)
+            agent = DeepSeekModel.build_structured_agent(response_format=response_model)
             result = agent.invoke(
                 {"messages": [{"role": "user", "content": f"{instruction}{safe_text}"}]}
             )
