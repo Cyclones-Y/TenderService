@@ -1,9 +1,11 @@
 from bs4 import BeautifulSoup, Tag
 import requests
-from langchain.chat_models import init_chat_model
+import asyncio
+
 from pydantic import BaseModel, Field
 
-
+from module_tender.service.gov_procurement.base import GovProcurementBase
+from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
 from module_tender.service.integration.structured_output import extract_structured_data
 from prompts.prompts import  get_classify_landscaping_prompt
 
@@ -103,7 +105,35 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    url = "http://www.ccgp-beijing.gov.cn/xxgg/qjxxgg/qjzbgg/2026/1/fab0208c16844e759d9dc44094dd3232.htm"
-    # get_html_detail_content(url)
-    main()
-    # print(get_html_project_list("http://www.ccgp-beijing.gov.cn/xxgg/qjxxgg/A002004002index_1.htm"))
+    start_date ="2025-12-05"
+    end_date = "2026-01-14"
+    include_keywords = ['园林', '景观', '森林', '绿化', '养护', '林业', '花园', '绿地', '公园', '生态', '树木', '喷灌', '植被', '环境']
+
+    async def _run():
+        result_1 = await GovProcurementBase.get_html_project_list(
+            level="city",
+            start_date=start_date,
+            end_date=end_date,
+        )
+        result_2 = await GovProcurementBase.get_html_project_list(
+            level="111",
+            start_date=start_date,
+            end_date=end_date,
+        )
+        result = result_1 + result_2
+        for li in result:
+            url = li.get('project_url')
+            title = li.get('project_title')
+            time = li.get('project_time')
+            if not url:
+                continue
+            text = await GovProcurementBase.get_html_detail_content(url)
+            matched_keywords_count = sum(1 for k in include_keywords if k in text[:400])
+            if matched_keywords_count < 2:
+                continue
+            print(GovTenderNoticeFetcher._get_project_code(text))
+            print(GovTenderNoticeFetcher._get_project_name(text))
+
+        print(f"一共有：{len(result)} 个项目")
+
+    asyncio.run(_run())

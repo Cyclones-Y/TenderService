@@ -8,6 +8,7 @@ from module_tender.service.public_resources.correction_notice import CorrectionN
 from module_tender.service.public_resources.tender_notice import TenderNoticeFetcher
 from module_tender.service.public_resources.tender_plan import TenderPlanFetcher
 from module_tender.service.public_resources.win_candidate import WinCandidateFetcher
+from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
 from utils.log_util import logger
 
 
@@ -45,6 +46,18 @@ class PublicResourcesService:
         return await TenderNoticeFetcher.fetch(start_date, end_date, db, page, size)
 
     @classmethod
+    async def fetch_gov_tender_notice(
+        cls,
+        start_date: str,
+        end_date: str,
+        db: AsyncSession,
+    ) -> int:
+        """
+        获取政府采购网招标公告
+        """
+        return await GovTenderNoticeFetcher.fetch(db=db, start_date=start_date, end_date=end_date)
+
+    @classmethod
     async def fetch_correction_notice(
         cls,
         start_date: str,
@@ -71,6 +84,8 @@ class PublicResourcesService:
         获取中标候选人
         """
         return await WinCandidateFetcher.fetch(start_date, end_date, db, page, size)
+
+    
 
     @classmethod
     async def fetch_all(
@@ -156,28 +171,33 @@ async def public_resources_tender_sync_job(
 async def test_fetch_tender_data() -> None:
     async with AsyncSessionLocal() as db:
         print("Fetching Tender Data...")
-        count_plan = await PublicResourcesService.fetch_tender_plan(
-            start_date="2025-12-05",
-            end_date="2026-01-05",
+        # count_plan = await PublicResourcesService.fetch_tender_plan(
+        #     start_date="2025-12-05",
+        #     end_date="2026-01-05",
+        #     db=db,
+        #     page=1,
+        #     size=200,
+        # )
+        # count_notice = await PublicResourcesService.fetch_tender_notice(
+        #     start_date="2025-12-05",
+        #     end_date="2026-01-05",
+        #     db=db,
+        #     page=1,
+        #     size=200,
+        # )
+        count_gov_notice = await PublicResourcesService.fetch_gov_tender_notice(
+            start_date="2026-01-05",
+            end_date="2026-01-14",
             db=db,
-            page=1,
-            size=200,
         )
-        count_notice = await PublicResourcesService.fetch_tender_notice(
-            start_date="2025-12-05",
-            end_date="2026-01-05",
-            db=db,
-            page=1,
-            size=200,
-        )
-        count_win_candidate = await PublicResourcesService.fetch_win_candidate(
-            start_date="2025-12-01",
-            end_date="2026-01-09",
-            db=db,
-            page=1,
-            size=200,
-        )
-        print(f"Fetched {count_win_candidate + count_plan + count_notice} tender notice.")
+        # count_win_candidate = await PublicResourcesService.fetch_win_candidate(
+        #     start_date="2025-12-01",
+        #     end_date="2026-01-09",
+        #     db=db,
+        #     page=1,
+        #     size=200,
+        # )
+        print(f"Fetched {count_gov_notice} tender notice.")
 
 
 if __name__ == "__main__":
