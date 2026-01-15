@@ -1,9 +1,9 @@
-export type ViewState = 'dashboard' | 'list' | 'detail' | 'settings' | 'subscription';
+export type ViewState = 'dashboard' | 'list' | 'detail' | 'settings' | 'subscription' | 'assistant';
 
 export enum TenderStage {
   ANNOUNCEMENT = '招标公告',
   CANDIDATE = '中标候选人',
-  RESULT = '中标结果',
+  RESULT = '中标公告',
   FAILURE = '流标/废标',
   CHANGE = '变更公告'
 }

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, List, FileText, Settings as SettingsIcon, Bell, Menu, X, LogOut, PieChart } from 'lucide-react';
+import { LayoutDashboard, List, FileText, Settings as SettingsIcon, Bell, Menu, X, LogOut, PieChart, Brain } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TenderList from './components/TenderList';
 import TenderDetail from './components/TenderDetail';
 import Settings from './components/Settings';
 import Subscription from './components/Subscription';
+import AiAssistant from './components/AiAssistant';
 import { ViewState } from './types';
 import { Button } from './components/ui/Button';
 
@@ -42,6 +43,7 @@ const MainContent: React.FC = () => {
     if (path === '/tenders') return 'list';
     if (path === '/subscription') return 'subscription';
     if (path === '/settings') return 'settings';
+    if (path === '/assistant') return 'assistant';
     return 'dashboard';
   }, [location.pathname]);
 
@@ -55,6 +57,7 @@ const MainContent: React.FC = () => {
     else if (view === 'list') navigate('/tenders');
     else if (view === 'subscription') navigate('/subscription');
     else if (view === 'settings') navigate('/settings');
+    else if (view === 'assistant') navigate('/assistant');
     
     setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -122,6 +125,7 @@ const MainContent: React.FC = () => {
       case 'detail': return '项目详情';
       case 'settings': return '偏好设置';
       case 'subscription': return '订阅管理';
+      case 'assistant': return 'AI智能参谋';
       default: return 'TenderSight';
     }
   };
@@ -133,6 +137,7 @@ const MainContent: React.FC = () => {
       case 'detail': return '查看招标项目的详细业务与资金数据。';
       case 'settings': return '管理系统显示偏好与编号规则。';
       case 'subscription': return '配置您的招标信息监控关键词与通知规则。';
+      case 'assistant': return '深度解读招标文件，评估风险并提供投标策略建议。';
       default: return '';
     }
   };
@@ -143,6 +148,7 @@ const MainContent: React.FC = () => {
     if (currentView === 'detail' && selectedTenderId) return <TenderDetail id={selectedTenderId} onBack={handleBackToList} />;
     if (currentView === 'subscription') return <Subscription />;
     if (currentView === 'settings') return <Settings />;
+    if (currentView === 'assistant') return <AiAssistant />;
     return <Dashboard />;
   };
 
@@ -184,17 +190,27 @@ const MainContent: React.FC = () => {
 
             <div className="mt-10">
               <h3 className="mb-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-400">
-                系统管理
+                智能工具
               </h3>
               <nav className="space-y-2">
-                <NavItem view="settings" label="偏好设置" icon={SettingsIcon} />
-                <NavItem view="subscription" label="订阅管理" icon={Bell} />
+                <NavItem view="assistant" label="AI智能参谋" icon={Brain} />
               </nav>
             </div>
           </div>
-          <div className="border-t border-slate-200 p-6">
-             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 mb-4">
-                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+          
+          <div className="border-t border-slate-200 p-4">
+             <div className="mb-4">
+                <h3 className="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  系统管理
+                </h3>
+                <nav className="space-y-1">
+                  <NavItem view="settings" label="偏好设置" icon={SettingsIcon} />
+                  <NavItem view="subscription" label="订阅管理" icon={Bell} />
+                </nav>
+             </div>
+
+             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 mb-3">
+                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
                   JS
                 </div>
                 <div className="flex-1 overflow-hidden">
