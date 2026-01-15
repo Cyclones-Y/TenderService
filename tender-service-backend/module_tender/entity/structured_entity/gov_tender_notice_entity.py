@@ -15,5 +15,5 @@ class GovTenderNoticeEntity(BaseModel):
     agentName:str = Field(title="代理机构名称", description="代理机构名称")
     constructionContent: str = Field(title="施工内容", description="施工内容")
     duration: str = Field(title="工期", description="工期，以日历天为单位")
-    registrationDeadline: str = Field(title="报名截止时间",
-                                      description="该截止时间为获取文件的截止时间，如：时间：2026-01-06 至 2026-01-12 ，每天上午09:00至12:00，下午12:00至16:00（北京时间，法定节假日除外），截止时间则为：2026年01月12日16时00分")
+    registrationDeadline: str = Field(title="获取文件的最后时间",
+                                      description="最后获取采购文件/招标文件的时间。如：时间：2026-01-06 至 2026-01-12 ，每天上午09:00至12:00，下午12:00至16:00（北京时间，法定节假日除外），时间则为：2026年01月12日16时00分")

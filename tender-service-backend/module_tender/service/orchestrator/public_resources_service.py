@@ -4,11 +4,10 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.database import AsyncSessionLocal
-from module_tender.service.public_resources.correction_notice import CorrectionNoticeFetcher
+from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
 from module_tender.service.public_resources.tender_notice import TenderNoticeFetcher
 from module_tender.service.public_resources.tender_plan import TenderPlanFetcher
 from module_tender.service.public_resources.win_candidate import WinCandidateFetcher
-from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
 from utils.log_util import logger
 
 
@@ -58,20 +57,6 @@ class PublicResourcesService:
         return await GovTenderNoticeFetcher.fetch(db=db, start_date=start_date, end_date=end_date)
 
     @classmethod
-    async def fetch_correction_notice(
-        cls,
-        start_date: str,
-        end_date: str,
-        db: AsyncSession,
-        page: int = 1,
-        size: int = 100,
-    ) -> int:
-        """
-        获取更正公告
-        """
-        return await CorrectionNoticeFetcher.fetch(start_date, end_date, db, page, size)
-
-    @classmethod
     async def fetch_win_candidate(
         cls,
         start_date: str,
@@ -85,8 +70,6 @@ class PublicResourcesService:
         """
         return await WinCandidateFetcher.fetch(start_date, end_date, db, page, size)
 
-    
-
     @classmethod
     async def fetch_all(
         cls,
@@ -99,23 +82,55 @@ class PublicResourcesService:
         include_plan: bool = True,
         include_notice: bool = True,
         include_win_candidate: bool = True,
+        include_gov_notice: bool = True,
     ) -> dict[str, int]:
-        result: dict[str, int] = {"plan": 0, "notice": 0, "correction": 0, "win_candidate": 0, "total": 0}
+        result: dict[str, int] = {"plan": 0, "notice": 0, "win_candidate": 0, "gov_notice": 0, "total": 0}
+
+        coroutines: list[asyncio.Future[tuple[str, int]]] = []
 
         if include_plan:
-            result["plan"] = await cls.fetch_tender_plan(
-                start_date=start_date, end_date=end_date, db=db, page=page, size=size
-            )
-        if include_notice:
-            result["notice"] = await cls.fetch_tender_notice(
-                start_date=start_date, end_date=end_date, db=db, page=page, size=size
-            )
-        if include_win_candidate:
-            result["win_candidate"] = await cls.fetch_win_candidate(
-                start_date=start_date, end_date=end_date, db=db, page=page, size=size
-            )
+            async def _plan_task() -> tuple[str, int]:
+                count = await cls.fetch_tender_plan(
+                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
+                )
+                return "plan", count
 
-        result["total"] = result["plan"] + result["notice"] + result["correction"] + result["win_candidate"]
+            coroutines.append(_plan_task())
+
+        if include_notice:
+            async def _notice_task() -> tuple[str, int]:
+                count = await cls.fetch_tender_notice(
+                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
+                )
+                return "notice", count
+
+            coroutines.append(_notice_task())
+
+        if include_win_candidate:
+            async def _win_candidate_task() -> tuple[str, int]:
+                count = await cls.fetch_win_candidate(
+                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
+                )
+                return "win_candidate", count
+
+            coroutines.append(_win_candidate_task())
+
+        if include_gov_notice:
+            async def _gov_notice_task() -> tuple[str, int]:
+                count = await cls.fetch_gov_tender_notice(
+                    start_date=start_date,
+                    end_date=end_date,
+                    db=db,
+                )
+                return "gov_notice", count
+
+            coroutines.append(_gov_notice_task())
+
+        if coroutines:
+            results = await asyncio.gather(*coroutines)
+            result.update(dict(results))
+
+        result["total"] = result["plan"] + result["notice"] + result["win_candidate"] + result["gov_notice"]
         return result
 
 
@@ -138,6 +153,7 @@ async def public_resources_tender_sync_job(
     include_plan: bool = True,
     include_notice: bool = True,
     include_win_candidate: bool = True,
+    include_gov_notice: bool = True,
     **kwargs,
 ) -> None:
     days_back_int = max(0, _to_int(days_back, 7))
@@ -164,6 +180,7 @@ async def public_resources_tender_sync_job(
             include_plan=include_plan,
             include_notice=include_notice,
             include_win_candidate=include_win_candidate,
+            include_gov_notice=include_gov_notice,
         )
     logger.info(f"public_resources_tender_sync_job done: {result}")
 
@@ -171,33 +188,18 @@ async def public_resources_tender_sync_job(
 async def test_fetch_tender_data() -> None:
     async with AsyncSessionLocal() as db:
         print("Fetching Tender Data...")
-        # count_plan = await PublicResourcesService.fetch_tender_plan(
-        #     start_date="2025-12-05",
-        #     end_date="2026-01-05",
-        #     db=db,
-        #     page=1,
-        #     size=200,
-        # )
-        # count_notice = await PublicResourcesService.fetch_tender_notice(
-        #     start_date="2025-12-05",
-        #     end_date="2026-01-05",
-        #     db=db,
-        #     page=1,
-        #     size=200,
-        # )
-        count_gov_notice = await PublicResourcesService.fetch_gov_tender_notice(
-            start_date="2026-01-05",
-            end_date="2026-01-14",
+        result = await PublicResourcesService.fetch_all(
+            start_date="2026-01-01",
+            end_date="2026-01-15",
             db=db,
+            page=1,
+            size=200,
+            include_plan=False,
+            include_notice=False,
+            include_win_candidate=False,
+            include_gov_notice=True,
         )
-        # count_win_candidate = await PublicResourcesService.fetch_win_candidate(
-        #     start_date="2025-12-01",
-        #     end_date="2026-01-09",
-        #     db=db,
-        #     page=1,
-        #     size=200,
-        # )
-        print(f"Fetched {count_gov_notice} tender notice.")
+        print(f"Fetched gov tender notice: {result}")
 
 
 if __name__ == "__main__":

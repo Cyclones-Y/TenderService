@@ -34,7 +34,7 @@ class GovTenderNoticeFetcher(GovProcurementBase):
         result = city_result + area_result
 
         # Concurrency control
-        semaphore = asyncio.Semaphore(5)
+        semaphore = asyncio.Semaphore(10)
         db_lock = asyncio.Lock()
 
         async def process_item(item: dict) -> TenderModel | None:
