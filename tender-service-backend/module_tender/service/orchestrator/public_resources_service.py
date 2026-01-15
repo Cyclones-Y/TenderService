@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.database import AsyncSessionLocal
 from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
+from module_tender.service.gov_procurement.win_candidate import GovWinCandidateFetcher
 from module_tender.service.public_resources.tender_notice import TenderNoticeFetcher
 from module_tender.service.public_resources.tender_plan import TenderPlanFetcher
 from module_tender.service.public_resources.win_candidate import WinCandidateFetcher
@@ -71,6 +72,18 @@ class PublicResourcesService:
         return await WinCandidateFetcher.fetch(start_date, end_date, db, page, size)
 
     @classmethod
+    async def fetch_gov_win_candidate(
+            cls,
+            start_date: str,
+            end_date: str,
+            db: AsyncSession,
+    ) -> int:
+        """
+        获取政府采购网中标公告
+        """
+        return await GovWinCandidateFetcher.fetch(db=db, start_date=start_date, end_date=end_date)
+
+    @classmethod
     async def fetch_all(
         cls,
         start_date: str,
@@ -83,6 +96,7 @@ class PublicResourcesService:
         include_notice: bool = True,
         include_win_candidate: bool = True,
         include_gov_notice: bool = True,
+        include_gov_win_candidate: bool = True,
     ) -> dict[str, int]:
         result: dict[str, int] = {"plan": 0, "notice": 0, "win_candidate": 0, "gov_notice": 0, "total": 0}
 
@@ -125,6 +139,17 @@ class PublicResourcesService:
                 return "gov_notice", count
 
             coroutines.append(_gov_notice_task())
+
+        if include_gov_win_candidate:
+            async def _gov_win_candidate_task() -> tuple[str, int]:
+                count = await cls.fetch_gov_win_candidate(
+                    start_date=start_date,
+                    end_date=end_date,
+                    db=db,
+                )
+                return "gov_win_candidate", count
+
+            coroutines.append(_gov_win_candidate_task())
 
         if coroutines:
             results = await asyncio.gather(*coroutines)
@@ -197,7 +222,8 @@ async def test_fetch_tender_data() -> None:
             include_plan=False,
             include_notice=False,
             include_win_candidate=False,
-            include_gov_notice=True,
+            include_gov_notice=False,
+            include_gov_win_candidate=True,
         )
         print(f"Fetched gov tender notice: {result}")
 

@@ -111,11 +111,13 @@ if __name__ == "__main__":
 
     async def _run():
         result_1 = await GovProcurementBase.get_html_project_list(
+            info_type="win",
             level="city",
             start_date=start_date,
             end_date=end_date,
         )
         result_2 = await GovProcurementBase.get_html_project_list(
+            info_type="win",
             level="111",
             start_date=start_date,
             end_date=end_date,

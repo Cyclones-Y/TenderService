@@ -1,13 +1,12 @@
-import re
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.structured_entity.gov_tender_notice_entity import GovTenderNoticeEntity
 from module_tender.entity.vo.tender_vo import TenderModel
-from module_tender.service.gov_procurement.base import GovProcurementBase
+from module_tender.service.gov_procurement.base import GovProcurementBase, Landscaping
 from module_tender.service.integration.structured_output import extract_structured_data
-from pydantic import BaseModel, Field
+
 
 from prompts.prompts import get_classify_landscaping_prompt
 
@@ -15,8 +14,7 @@ from prompts.prompts import get_classify_landscaping_prompt
 class GovTenderNoticeFetcher(GovProcurementBase):
     """政府采购公告获取与解析"""
     PROJECT_STAGE = "招标公告"
-    include_keywords = ['园林', '景观', '森林', '绿化', '养护', '林业', '花园', '绿地', '公园', '生态', '树木', '喷灌',
-                        '植被', '环境']
+
     @classmethod
     async def fetch(cls, db: AsyncSession, start_date: str, end_date: str) -> int:
         city_result = await cls.get_html_project_list(
@@ -120,32 +118,6 @@ class GovTenderNoticeFetcher(GovProcurementBase):
 
 
     @staticmethod
-    def _get_project_code(text: str) -> str | None:
-        """
-        从文本中提取项目编号
-        """
-        match = re.search(
-            r"项目编号[：:]\s*(.*?)(?:\n|$)",
-            text,
-            flags=re.S)
-        if match:
-            return re.sub(r"\s+", " ", match.group(1)).strip().strip("。；;，")
-        return ""
-
-    @staticmethod
-    def _get_project_name(text: str) -> str | None:
-        """
-        从文本中提取项目编号
-        """
-        match = re.search(
-            r"项目名称[：:]\s*(.*?)(?:\n|$)",
-            text,
-            flags=re.S)
-        if match:
-            return re.sub(r"\s+", " ", match.group(1)).strip().strip("。；;，")
-        return ""
-
-    @staticmethod
     def _default_ai_entity() -> GovTenderNoticeEntity:
         return GovTenderNoticeEntity(
             district="市级",
@@ -212,5 +184,3 @@ class GovTenderNoticeFetcher(GovProcurementBase):
 
 
 
-class Landscaping(BaseModel):
-    is_landscaping_industry: bool = Field(default=False, description="是否为园林行业相关")
