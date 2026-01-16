@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterable
 from datetime import datetime, timedelta
-
+import json
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from module_admin.entity.do.job_do import SysJobLog
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import (
+    AiTenderAnalysisModel,
     DeleteTenderModel,
     DistrictStatModel,
     StageStatModel,
@@ -18,6 +20,7 @@ from module_tender.entity.vo.tender_vo import (
     TrendStatModel,
 )
 from module_tender.service.orchestrator.public_resources_service import PublicResourcesService
+from module_tender.agent.agent import tender_agent
 from utils.common_util import SqlalchemyUtil
 from utils.excel_util import ExcelUtil
 
@@ -54,6 +57,92 @@ class TenderService:
         tender_info = await TenderDao.get_tender_detail_by_id(db, tender_id)
 
         return tender_info
+
+    @staticmethod
+    def _build_ai_context(tender: BizTenderInfo) -> str:
+        """
+        构建用于 AI 分析的项目上下文文本
+        """
+        parts: list[str] = []
+
+        def add(label: str, value: object | None) -> None:
+            if value is None:
+                return
+            text = str(value).strip()
+            if not text:
+                return
+            parts.append(f"{label}: {text}")
+
+        add("项目名称", tender.project_name)
+        add("项目编号", tender.project_code)
+        add("所在区县", tender.district)
+        add("建设单位", tender.construction_unit)
+        add("项目阶段", tender.project_stage)
+        add("项目类型", tender.project_type)
+        add("招标控制价（万元）", tender.bid_control_price)
+        add("中标价（万元）", tender.bid_price)
+        add("建设规模", tender.construction_scale)
+        add("施工内容", tender.construction_content)
+        add("招标范围", tender.tender_scope)
+        add("工期", tender.duration)
+        add("报名截止时间", tender.registration_deadline)
+        add("代理机构", tender.agency)
+        add("信息发布时间", tender.release_time)
+        add("公告网站", tender.announcement_website)
+        add("预审公告收集网址", tender.pre_qualification_url)
+        add("中标公告网址", tender.bid_announcement_url)
+        add("备注", tender.remark)
+
+        return "\n".join(parts)
+
+    @staticmethod
+    def _default_ai_analysis() -> AiTenderAnalysisModel:
+        """
+        AI 分析失败时的默认结果
+        """
+        return AiTenderAnalysisModel(
+            score=60,
+            summary="",
+            risks=[],
+            requirements=[],
+            strategy="",
+        )
+
+    @classmethod
+    async def analyze_tender_ai(cls, tender_id: int, db: AsyncSession) -> AiTenderAnalysisModel:
+        """
+        使用大模型对招标项目进行 AI 分析
+        
+        :param tender_id: 招标信息id
+        :param db: orm对象
+        :return: AI 分析结果
+        """
+        last_result = None
+        async for state in tender_agent.run(tender_id, db):
+            if state.get('analysis_result'):
+                last_result = state['analysis_result']
+        
+        if last_result:
+            return last_result
+            
+        return cls._default_ai_analysis()
+
+    @classmethod
+    async def analyze_tender_ai_stream(cls, tender_id: int, db: AsyncSession) -> AsyncIterable[str]:
+        """
+        流式执行 AI 分析，返回进度和结果
+        """
+        async for state in tender_agent.run(tender_id, db):
+            output = {
+                "progress": state.get("progress", 0),
+                "message": state.get("current_step", ""),
+                "result": None,
+            }
+
+            if state.get("analysis_result"):
+                output["result"] = state["analysis_result"].model_dump(by_alias=True)
+
+            yield f"data: {json.dumps(output, ensure_ascii=False)}\n\n"
 
     @classmethod
     async def add_tender(cls, tender: TenderModel, db: AsyncSession) -> BizTenderInfo:

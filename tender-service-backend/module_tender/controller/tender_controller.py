@@ -8,6 +8,7 @@ from common.router import APIRouterPro
 from common.vo import DataResponseModel, PageModel
 from config.get_db import get_db
 from module_tender.entity.vo.tender_vo import (
+    AiTenderAnalysisModel,
     DeleteTenderModel,
     TenderDashboardModel,
     TenderModel,
@@ -78,6 +79,39 @@ async def get_tender_detail(
     if tender_info:
         return ResponseUtil.success(data=TenderModel.model_validate(tender_info))
     return ResponseUtil.failure(msg='未找到该招标信息')
+
+
+@tender_controller.get(
+    '/{tender_id}/ai-analysis',
+    response_model=DataResponseModel[AiTenderAnalysisModel],
+    summary='AI 智能参谋分析',
+    description='对指定招标项目进行AI分析，返回摘要、风险与策略建议',
+)
+async def analyze_tender_ai(
+    tender_id: int, db: AsyncSession = Depends(get_db)
+) -> Response:
+    """
+    对单个招标项目进行 AI 智能分析
+    """
+    analysis = await TenderService.analyze_tender_ai(tender_id, db)
+    return ResponseUtil.success(data=analysis)
+
+
+@tender_controller.get(
+    '/{tender_id}/ai-analysis/stream',
+    summary='AI 智能参谋分析（流式）',
+    description='返回 Server-Sent Events 流，包含进度和最终结果',
+)
+async def analyze_tender_ai_stream(
+    tender_id: int, db: AsyncSession = Depends(get_db)
+) -> StreamingResponse:
+    """
+    流式返回 AI 分析进度
+    """
+    return StreamingResponse(
+        TenderService.analyze_tender_ai_stream(tender_id, db),
+        media_type="text/event-stream"
+    )
 
 
 @tender_controller.post(

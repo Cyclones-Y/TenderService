@@ -17,6 +17,8 @@ class DeepSeekModel:
         api_key = "sk-bab3d0968b544542b626ee2f13cd61f6"
         base_url = os.getenv("DEEPSEEK_BASE_URL")
         if not api_key:
+            # Fallback for dev environment if needed, but better to enforce env var
+            # api_key = "sk-bab3d0968b544542b626ee2f13cd61f6" 
             raise RuntimeError("缺少环境变量 DEEPSEEK_API_KEY")
         return ChatDeepSeek(model="deepseek-chat", api_key=api_key, base_url=base_url)
 

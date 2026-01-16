@@ -110,3 +110,29 @@ class TenderDashboardModel(BaseModel):
     district_stats: list[DistrictStatModel] = Field(description='区域分布统计')
     stage_stats: list[StageStatModel] = Field(description='项目阶段分布统计')
     trend_stats: list[TrendStatModel] = Field(description='趋势统计')
+
+
+class AiRequirementItemModel(BaseModel):
+    """
+    AI 智能参谋 - 单条关键/硬性要求
+    """
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    label: str = Field(description='要求类别')
+    value: str = Field(description='要求内容')
+    met: bool = Field(description='是否满足该要求')
+
+
+class AiTenderAnalysisModel(BaseModel):
+    """
+    AI 智能参谋 - 项目分析结果
+    """
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    score: int = Field(description='AI 推荐指数（0-100）')
+    summary: str = Field(description='核心解读与摘要')
+    risks: list[str] = Field(description='风险列表')
+    requirements: list[AiRequirementItemModel] = Field(description='关键/硬性要求列表')
+    strategy: str = Field(description='投标响应策略建议')
