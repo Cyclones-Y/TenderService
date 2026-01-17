@@ -10,6 +10,7 @@ services:
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: rujing2025.
         POSTGRES_INITDB_ARGS: --encoding=UTF8 --lc-collate=C --lc-ctype=C
+        TZ: Asia/Shanghai
     ports:
       - "5432:5432"
     volumes:
@@ -34,6 +35,8 @@ services:
         condition: service_healthy
     env_file:
       - .env.dockerpg
+    environment:
+      TZ: Asia/Shanghai
     ports:
       - "${APP_PORT:-9099}:${APP_PORT:-9099}"
     networks:
@@ -43,4 +46,3 @@ networks:
   ruoyi-net:
     name: deploy_ruoyi-net
     external: true
-
