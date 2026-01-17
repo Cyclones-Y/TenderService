@@ -15,6 +15,7 @@ import { getApiUrl } from './utils/api';
 type TrendStat = { date: string; count: number };
 
 type DashboardData = {
+  lastSyncTime?: string;
   lastSyncMinutesAgo: number;
   lastSyncHoursAgo: number;
   trendStats: TrendStat[];
@@ -264,8 +265,9 @@ const MainContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const baseUrl = (import.meta as any)?.env?.BASE_URL ?? '/';
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename={baseUrl}>
       <Routes>
         <Route path="/*" element={<MainContent />} />
       </Routes>

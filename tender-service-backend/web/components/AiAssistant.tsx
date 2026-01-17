@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
 import { 
@@ -94,6 +95,7 @@ const AiAssistant: React.FC = () => {
     const params = new URLSearchParams();
     params.set('page_num', '1');
     params.set('page_size', String(opts.pageSize));
+    params.set('project_stage', '招标公告');
     if (opts.projectCode) params.set('project_code', opts.projectCode);
     if (opts.projectName) params.set('project_name', opts.projectName);
     const res = await fetch(getApiUrl(`/tenders?${params.toString()}`));
@@ -167,13 +169,18 @@ const AiAssistant: React.FC = () => {
       const run = async () => {
         setIsSearchingTenders(true);
         try {
-          const looksLikeCode = /[0-9]/.test(term) || term.includes('-');
-          const items = await fetchTenderOptions(
-            looksLikeCode
-              ? { pageSize: 50, projectCode: term }
-              : { pageSize: 50, projectName: term }
-          );
-          setSearchResults(items);
+          const [byCode, byName] = await Promise.all([
+            fetchTenderOptions({ pageSize: 50, projectCode: term }),
+            fetchTenderOptions({ pageSize: 50, projectName: term }),
+          ]);
+          const mergedMap = new Map<number, SimpleTender>();
+          [...byCode, ...byName].forEach((item) => {
+            if (item && item.tenderId) {
+              mergedMap.set(item.tenderId, item);
+            }
+          });
+          const merged = Array.from(mergedMap.values());
+          setSearchResults(merged);
         } catch (error) {
           console.error("Failed to search tenders:", error);
           setSearchResults([]);
@@ -295,6 +302,38 @@ const AiAssistant: React.FC = () => {
     );
   }, [searchResults, tenders, searchTerm]);
 
+  const scoreMeta = useMemo(() => {
+    if (!result) return null;
+    if (result.score >= 80) {
+      return {
+        label: '胜算高',
+        badgeClassName: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        dotColor: 'text-emerald-500',
+        hint: '击败了 85% 的类似项目',
+        conclusion: '整体来看，该项目胜算较高，建议作为重点目标积极推进。',
+        features: ['资质完美匹配', '预算充足', '竞争烈度低'],
+      };
+    }
+    if (result.score >= 60) {
+      return {
+        label: '机会适中',
+        badgeClassName: 'bg-amber-50 text-amber-800 border-amber-200',
+        dotColor: 'text-amber-500',
+        hint: '建议谨慎参与',
+        conclusion: '整体来看，该项目机会与风险并存，建议进行详细评估后再做决策。',
+        features: ['资质符合', '存在价格博弈'],
+      };
+    }
+    return {
+      label: '风险较高',
+      badgeClassName: 'bg-red-50 text-red-800 border-red-200',
+      dotColor: 'text-red-500',
+      hint: '建议谨慎参与',
+      conclusion: '整体来看，该项目存在较大风险，建议谨慎参与或放弃。',
+      features: ['风险极高', '利润空间低'],
+    };
+  }, [result]);
+
   const selectedTenderObj = tenders.find(t => t.tenderId === selectedProject) || searchResults.find(t => t.tenderId === selectedProject);
 
   if (view === 'history') {
@@ -335,7 +374,15 @@ const AiAssistant: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="space-y-2" ref={dropdownRef}>
-                <label className="text-sm font-semibold text-slate-700">目标项目</label>
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                  <span>目标项目</span>
+                  <span
+                    className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full bg-slate-200 text-slate-600 cursor-help"
+                    title="目标项目仅支持招标公告"
+                  >
+                    i
+                  </span>
+                </label>
                 {/* Custom Searchable Select */}
                 <div className="relative">
                   <div 
@@ -347,7 +394,7 @@ const AiAssistant: React.FC = () => {
                   >
                     <span className={`block truncate ${selectedTenderObj ? 'text-slate-900' : 'text-slate-400'}`}>
                       {selectedTenderObj 
-                        ? `${selectedTenderObj.projectCode} - ${selectedTenderObj.projectName}` 
+                        ? `${selectedTenderObj.projectName}（${selectedTenderObj.projectCode}）`
                         : (isLoadingTenders ? "加载项目中..." : "-- 请选择或搜索项目 --")}
                     </span>
                     <div className="flex items-center">
@@ -542,108 +589,95 @@ const AiAssistant: React.FC = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
               
               {/* 1. Score Overview Cards (Clean White Style) */}
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-slate-200 shadow-sm overflow-hidden">
-                   <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">综合推荐指数</p>
-                            <div className="flex items-baseline gap-2 mt-2">
-                               <span className="text-5xl font-bold text-indigo-600 tracking-tight">{result.score}</span>
-                               <span className="text-lg text-slate-400">/ 100</span>
-                            </div>
-                            <div className="mt-4 flex items-center gap-2">
-                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
-                                 {result.score >= 80 ? '胜算高' : result.score >= 60 ? '机会适中' : '风险较高'}
-                               </span>
-                               <span className="text-xs text-slate-400">
-                                 {result.score >= 80 ? '击败了 85% 的类似项目' : '建议谨慎参与'}
-                               </span>
-                            </div>
-                         </div>
-                         <div className="h-10 w-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
-                            <Target size={20} />
-                         </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-slate-200 shadow-sm overflow-hidden relative">
+                  {/* Decorative Target Icon */}
+                  <div className="absolute top-4 right-4 pointer-events-none">
+                     <div className="h-10 w-10 rounded-full bg-indigo-50/80 flex items-center justify-center">
+                       <Target className="h-5 w-5 text-indigo-600" />
+                     </div>
+                  </div>
+
+                  <CardContent className="h-[220px] flex flex-col pt-6">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 w-full text-left">综合推荐指数</p>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center w-full">
+                      {/* 分值 */}
+                      <div className="flex items-baseline gap-2 leading-none mb-4">
+                        <span className="text-6xl font-bold text-indigo-600 tracking-tight">
+                          {result.score}
+                        </span>
+                        <span className="text-base text-slate-400 pb-2">/ 100</span>
                       </div>
-                   </CardContent>
+
+                      {/* 状态提示框 */}
+                      <div 
+                        className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors mb-4 ${scoreMeta?.badgeClassName}`}
+                        style={{ width: '25ch' }}
+                      >
+                        <span className={`text-[10px] ${scoreMeta?.dotColor}`}>●</span>
+                        <span>模型判断：{scoreMeta?.label}</span>
+                      </div>
+
+                      {/* AI 特征标签 */}
+                      <div className="flex gap-2 flex-wrap justify-center">
+                          {scoreMeta?.features?.map((feature, i) => (
+                             <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                #{feature}
+                             </span>
+                          ))}
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
 
                 <Card className="border-slate-200 shadow-sm">
-                   <CardContent className="p-6 h-[180px] relative">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">能力维度雷达</p>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="65%" data={result.radarData}>
-                          <PolarGrid stroke="#f1f5f9" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                          <Radar name="Project" dataKey="A" stroke="#6366f1" strokeWidth={2} fill="#6366f1" fillOpacity={0.1} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                   </CardContent>
+                  <CardContent className="h-[220px] flex flex-col pt-6">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      评分依据（能力维度雷达）
+                    </p>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="w-full" style={{ height: 170 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart cx="50%" cy="50%" outerRadius="78%" data={result.radarData}>
+                            <PolarGrid stroke="#f1f5f9" />
+                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                            <Radar name="Project" dataKey="A" stroke="#6366f1" strokeWidth={2} fill="#6366f1" fillOpacity={0.1} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
 
                 <Card className="border-slate-200 shadow-sm">
-                   <CardContent className="p-6 h-full flex flex-col justify-center">
-                      <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                         <div>
-                            <p className="text-xs text-slate-400 uppercase font-semibold">预估利润率</p>
-                            <p className="text-xl font-bold text-slate-900 mt-1">{result.profitability}</p>
-                         </div>
-                         <div>
-                            <p className="text-xs text-slate-400 uppercase font-semibold">实施难度</p>
-                            <p className="text-xl font-bold text-slate-900 mt-1">{result.difficulty}</p>
-                         </div>
-                         <div className="col-span-2 pt-4 border-t border-slate-100 flex items-center justify-between">
-                            <span className="text-sm text-slate-500">发现 <span className="font-bold text-amber-600">{result.risks.length}</span> 个关键风险点</span>
-                            <ArrowRight size={16} className="text-slate-300" />
-                         </div>
+                  <CardContent className="h-[220px] flex flex-col pt-6">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">决策建议</p>
+                    <div className="mt-4 text-2xl font-bold text-slate-900 leading-tight">
+                      {result.score >= 80 ? '建议推进' : result.score >= 60 ? '建议评估后推进' : '建议暂缓'}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-400 uppercase font-semibold">预估利润率</p>
+                        <p className="text-lg font-bold text-slate-900 mt-1">{result.profitability}</p>
                       </div>
-                   </CardContent>
+                      <div className="border-l border-slate-100 pl-4">
+                        <p className="text-xs text-slate-400 uppercase font-semibold">实施难度</p>
+                        <p className="text-lg font-bold text-slate-900 mt-1">{result.difficulty}</p>
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-500">
+                        关键风险点 <span className="font-bold text-amber-600">{result.risks.length}</span>
+                      </span>
+                      <ArrowRight size={14} className="text-slate-300" />
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
 
 
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">行业趋势</p>
-                       <ul className="space-y-3 text-slate-800 text-sm">
-                          <li className="flex gap-2 items-start">
-                             <TrendingUp className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>智慧市政与数字工地纳入评标加分项，相关案例可显著提升竞争力。</span>
-                          </li>
-                          <li className="flex gap-2 items-start">
-                             <BarChart4 className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>材料价格波动减弱，报价策略以合理利润为主，低价中标概率下降。</span>
-                          </li>
-                          <li className="flex gap-2 items-start">
-                             <LineChart className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>工期管控成为重点，资源调配与计划可信度权重提升。</span>
-                          </li>
-                       </ul>
-                    </CardContent>
-                 </Card>
-                 <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">用户画像</p>
-                       <ul className="space-y-3 text-slate-800 text-sm">
-                          <li className="flex gap-2 items-start">
-                             <Users className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>业主偏好履约能力与方案细节，重视过往项目的实绩与口碑。</span>
-                          </li>
-                          <li className="flex gap-2 items-start">
-                             <Briefcase className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>付款周期稳健但节点严格，需在合同中明确关键里程碑。</span>
-                          </li>
-                          <li className="flex gap-2 items-start">
-                             <Lightbulb className="h-4 w-4 text-indigo-600 mt-0.5" />
-                             <span>创新点与数字化应用可作为加分亮点，建议结合企业资质展示。</span>
-                          </li>
-                       </ul>
-                    </CardContent>
-                 </Card>
-              </div>
 
               {/* 2. Detailed Tabs (Clean Underline Style) */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[500px]">
@@ -740,8 +774,23 @@ const AiAssistant: React.FC = () => {
                                   <Lightbulb className="h-5 w-5 text-indigo-600" />
                                   AI 破局策略建议
                                </h3>
-                               <div className="whitespace-pre-wrap leading-relaxed">
-                                  {result.strategy}
+                               <div className="leading-relaxed">
+                                  <ReactMarkdown
+                                    components={{
+                                      h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-4 mt-6 text-slate-900 border-b border-slate-200 pb-2" {...props} />,
+                                      h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-5 text-slate-900" {...props} />,
+                                      h3: ({node, ...props}) => <h3 className="text-base font-bold mb-2 mt-4 text-slate-900" {...props} />,
+                                      p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-7" {...props} />,
+                                      ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 mb-4 text-slate-700" {...props} />,
+                                      ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-2 mb-4 text-slate-700" {...props} />,
+                                      li: ({node, ...props}) => <li className="pl-1 marker:text-indigo-400" {...props} />,
+                                      strong: ({node, ...props}) => <strong className="font-semibold text-slate-900 bg-indigo-50 px-1 rounded" {...props} />,
+                                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-300 pl-4 py-2 my-4 bg-white rounded-r italic text-slate-600 shadow-sm" {...props} />,
+                                      code: ({node, ...props}) => <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+                                    }}
+                                  >
+                                    {result.strategy}
+                                  </ReactMarkdown>
                                </div>
                              </div>
                           </div>
@@ -751,7 +800,7 @@ const AiAssistant: React.FC = () => {
               </div>
 
               <Card className="border-slate-200 shadow-sm">
-                 <CardContent className="p-6">
+                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2 mb-6">
                         <TrendingUp className="h-5 w-5 text-indigo-600" />
                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">市场情报与竞争态势</h3>

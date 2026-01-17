@@ -39,6 +39,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
     projectCode: '',
     district: '',
     stage: '',
+    projectType: '',
     startDate: '',
     endDate: ''
   });
@@ -69,6 +70,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
       projectCode: '',
       district: '',
       stage: '',
+      projectType: '',
       startDate: '',
       endDate: ''
     });
@@ -79,6 +81,7 @@ const TenderList: React.FC<TenderListProps> = ({ onViewDetail }) => {
       projectCode: '',
       district: '',
       stage: '',
+      projectType: '',
       startDate: '',
       endDate: ''
     }});
