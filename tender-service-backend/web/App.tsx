@@ -265,9 +265,8 @@ const MainContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const baseUrl = (import.meta as any)?.env?.BASE_URL ?? '/';
   return (
-    <BrowserRouter basename={baseUrl}>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/*" element={<MainContent />} />
       </Routes>

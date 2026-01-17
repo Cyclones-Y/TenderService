@@ -1,5 +1,5 @@
 import asyncio
-import requests
+from curl_cffi import requests as curl_requests
 from module_tender.agent.state.state import AgentState
 from module_tender.dao.tender_dao import TenderDao
 from utils.log_util import logger
@@ -20,8 +20,7 @@ class FetchNode:
             if url:
                 def fetch():
                     try:
-                        resp = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=30)
-                        resp.encoding = resp.apparent_encoding
+                        resp = curl_requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=30, impersonate="chrome")
                         return resp.text
                     except Exception as e:
                         logger.error(f"Fetch failed: {e}")
