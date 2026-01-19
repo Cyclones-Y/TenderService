@@ -267,8 +267,8 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
 
   const startProgressAnimation = () => {
     stopProgressAnimation();
-    const baseSpeed = 0.004;
-    const boostSpeed = 0.012;
+    const baseSpeed = 0.004; // 4% per second
+    const boostSpeed = 0.012; // 12% per second
     progressSpeedRef.current = baseSpeed;
     desiredSpeedRef.current = baseSpeed;
     lastFrameRef.current = 0;
