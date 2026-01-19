@@ -1,4 +1,5 @@
 from typing import Annotated
+import json
 
 from fastapi import Depends, Form, Query, Request, Response
 from fastapi.responses import StreamingResponse
@@ -9,6 +10,7 @@ from common.vo import DataResponseModel, PageModel
 from config.get_db import get_db
 from module_tender.entity.vo.tender_vo import (
     AiTenderAnalysisModel,
+    AiAnalysisHistoryItemModel,
     DeleteTenderModel,
     TenderDashboardModel,
     TenderModel,
@@ -103,15 +105,40 @@ async def analyze_tender_ai(
     description='返回 Server-Sent Events 流，包含进度和最终结果',
 )
 async def analyze_tender_ai_stream(
-    tender_id: int, db: AsyncSession = Depends(get_db)
+    tender_id: int,
+    qualifications: str | None = Query(None, description='企业资质列表JSON字符串'),
+    db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """
     流式返回 AI 分析进度
     """
+    parsed_qualifications: list[str] | None = None
+    if qualifications:
+        try:
+            parsed = json.loads(qualifications)
+            if isinstance(parsed, list):
+                parsed_qualifications = [str(item) for item in parsed if str(item).strip()]
+        except Exception:
+            parsed_qualifications = [q.strip() for q in qualifications.split(",") if q.strip()]
+
     return StreamingResponse(
-        TenderService.analyze_tender_ai_stream(tender_id, db),
+        TenderService.analyze_tender_ai_stream(tender_id, db, parsed_qualifications),
         media_type="text/event-stream"
     )
+
+
+@tender_controller.get(
+    '/ai-analysis/history',
+    response_model=DataResponseModel[list[AiAnalysisHistoryItemModel]],
+    summary='AI 分析历史记录',
+    description='获取AI分析历史记录列表',
+)
+async def get_ai_analysis_history(
+    limit: int = Query(50, description='返回条数'),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    history = await TenderService.get_ai_analysis_history(db, limit=limit)
+    return ResponseUtil.success(data=history)
 
 
 @tender_controller.post(

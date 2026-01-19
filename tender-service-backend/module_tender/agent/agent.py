@@ -23,7 +23,7 @@ class TenderAgent:
         
         self.app = self.workflow.compile()
         
-    async def run(self, tender_id: int, db_session):
+    async def run(self, tender_id: int, db_session, qualifications: list[str] | None = None):
         initial_state = AgentState(
             tender_id=tender_id,
             db_session=db_session,
@@ -34,6 +34,7 @@ class TenderAgent:
             analysis_result=None,
             error=None,
             intermediate_data={},
+            qualifications=qualifications or [],
         )
 
         last_state: AgentState | None = initial_state

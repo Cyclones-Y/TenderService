@@ -11,3 +11,4 @@ class AgentState(TypedDict):
     error: Optional[str]
     intermediate_data: Optional[dict]
     db_session: Any
+    qualifications: Optional[list[str]]

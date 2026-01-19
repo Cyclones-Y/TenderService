@@ -192,3 +192,15 @@ class AiTenderAnalysisModel(BaseModel):
     features: list[str] = Field(description='项目特征标签（如：资质完美匹配、预算充足）')
     decision_conclusion: str = Field(description='决策建议结论')
     focus_points: list[str] = Field(description='重点关注事项')
+
+
+class AiAnalysisHistoryItemModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    analysis_id: int = Field(description='分析记录ID')
+    tender_id: int = Field(description='招标信息ID')
+    project_name: str = Field(description='项目名称')
+    analysis_time: str = Field(description='分析时间')
+    score: int = Field(description='AI 推荐分')
+    risk_tag: str = Field(description='核心风险标签')
+    decision_conclusion: str = Field(description='决策建议')

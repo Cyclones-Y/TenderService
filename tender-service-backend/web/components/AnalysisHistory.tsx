@@ -1,62 +1,76 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
-import { History, Clock, FileCheck, AlertTriangle, ArrowLeft, Search, Filter } from 'lucide-react';
+import { Clock, FileCheck, AlertTriangle, ArrowLeft, Search, Filter } from 'lucide-react';
+import { getApiUrl } from '../utils/api';
 
-// Mock History Data (Moved from AiAssistant)
-const MOCK_HISTORY = [
-  {
-    id: 'h1',
-    projectName: '2024年海淀区智慧校园二期建设项目',
-    date: '2小时前',
-    score: 88,
-    riskLevel: 'low',
-    riskTag: '资金充足',
-    status: '已生成策略'
-  },
-  {
-    id: 'h2',
-    projectName: '通州区市政道路养护服务采购项目',
-    date: '昨天 14:30',
-    score: 65,
-    riskLevel: 'high',
-    riskTag: '回款周期长',
-    status: '建议放弃'
-  },
-  {
-    id: 'h3',
-    projectName: '朝阳区老旧小区外立面改造工程',
-    date: '3天前',
-    score: 72,
-    riskLevel: 'medium',
-    riskTag: '工期紧张',
-    status: '需联合体'
-  },
-  {
-    id: 'h4',
-    projectName: '北京市轨道交通13号线扩能提升工程',
-    date: '5天前',
-    score: 92,
-    riskLevel: 'low',
-    riskTag: '重点项目',
-    status: '已生成标书'
-  },
-  {
-    id: 'h5',
-    projectName: '某部委机关办公楼修缮工程',
-    date: '1周前',
-    score: 58,
-    riskLevel: 'high',
-    riskTag: '资质不符',
-    status: '建议放弃'
-  }
-];
+type HistoryItem = {
+  analysisId: number;
+  tenderId: number;
+  projectName: string;
+  analysisTime: string;
+  score: number;
+  riskTag: string;
+  decisionConclusion: string;
+};
 
-const AnalysisHistory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+type HistoryResponse = {
+  code: number;
+  msg: string;
+  success: boolean;
+  data: HistoryItem[];
+};
+
+const AnalysisHistory: React.FC<{ onBack: () => void; onViewReport: (tenderId: number) => void }> = ({ onBack, onViewReport }) => {
+  const [rows, setRows] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      setErrorText(null);
+      try {
+        const res = await fetch(getApiUrl('/tenders/ai-analysis/history?limit=50'));
+        const data: HistoryResponse = await res.json();
+        if (!data.success) {
+          throw new Error(data.msg);
+        }
+        setRows(data.data || []);
+      } catch (error) {
+        setRows([]);
+        setErrorText('加载分析历史失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchHistory();
+  }, []);
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
     if (score >= 60) return 'text-amber-600 bg-amber-50 border-amber-200';
     return 'text-red-600 bg-red-50 border-red-200';
+  };
+
+  const formatRelativeTime = (value: string) => {
+    if (!value) return '—';
+    const normalized = value.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) return value;
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    if (diffMinutes < 60) return `${Math.max(diffMinutes, 1)}分钟前`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}小时前`;
+    const diffDays = Math.floor(diffHours / 24);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    if (diffDays === 1) return `昨天 ${hours}:${minutes}`;
+    if (diffDays < 7) return `${diffDays}天前`;
+    const diffWeeks = Math.floor(diffDays / 7);
+    return `${diffWeeks}周前`;
   };
 
   return (
@@ -95,11 +109,21 @@ const AnalysisHistory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                  </tr>
                </thead>
                <tbody className="divide-y divide-slate-100 text-base">
-                 {MOCK_HISTORY.map((item) => (
-                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-5 font-medium text-slate-900">{item.projectName}</td>
-                      <td className="px-6 py-5 text-slate-500 flex items-center gap-2">
-                         <Clock className="h-4 w-4" /> {item.date}
+                 {loading && (
+                   <tr>
+                     <td className="px-6 py-5 text-slate-500" colSpan={6}>加载中...</td>
+                   </tr>
+                 )}
+                 {!loading && errorText && (
+                   <tr>
+                     <td className="px-6 py-5 text-red-600" colSpan={6}>{errorText}</td>
+                   </tr>
+                 )}
+                 {!loading && !errorText && rows.map((item) => (
+                   <tr key={item.analysisId} className="hover:bg-slate-50/50 transition-colors">
+                     <td className="px-6 py-5 font-medium text-slate-900">{item.projectName}</td>
+                     <td className="px-6 py-5 text-slate-500 flex items-center gap-2">
+                        <Clock className="h-4 w-4" /> {formatRelativeTime(item.analysisTime)}
                       </td>
                       <td className="px-6 py-5">
                          <span className={`px-2.5 py-1 rounded-md font-bold text-sm border ${getScoreColor(item.score)}`}>
@@ -107,18 +131,18 @@ const AnalysisHistory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                          </span>
                       </td>
                       <td className="px-6 py-5">
-                         <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
-                           {item.riskTag}
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200 max-w-[140px] truncate" title={item.riskTag}>
+                          {item.riskTag || '—'}
                          </span>
                       </td>
                       <td className="px-6 py-5">
-                         <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${item.riskLevel === 'low' ? 'text-emerald-600' : item.riskLevel === 'medium' ? 'text-indigo-600' : 'text-slate-500'}`}>
-                           {item.status === '建议放弃' ? <AlertTriangle className="h-4 w-4" /> : <FileCheck className="h-4 w-4" />}
-                           {item.status}
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${item.score >= 80 ? 'text-emerald-600' : item.score >= 60 ? 'text-indigo-600' : 'text-slate-500'}`}>
+                          {item.score < 60 ? <AlertTriangle className="h-4 w-4" /> : <FileCheck className="h-4 w-4" />}
+                          {item.decisionConclusion || '—'}
                          </span>
                       </td>
                       <td className="px-6 py-5 text-right">
-                         <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                        <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => onViewReport(item.tenderId)}>
                            查看报告
                          </Button>
                       </td>
@@ -128,7 +152,7 @@ const AnalysisHistory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
              </table>
            </div>
            <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center">
-              <span className="text-sm text-slate-400">已显示全部 5 条记录</span>
+             <span className="text-sm text-slate-400">已显示全部 {rows.length} 条记录</span>
            </div>
         </CardContent>
       </Card>

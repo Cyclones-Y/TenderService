@@ -1,16 +1,20 @@
 from collections.abc import AsyncIterable
 from datetime import datetime, timedelta
 import json
+import asyncio
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.database import AsyncSessionLocal
 from common.vo import PageModel
 from exceptions.exception import ServiceException
 from module_admin.entity.do.job_do import SysJobLog
 from module_tender.dao.tender_dao import TenderDao
+from module_tender.dao.tender_ai_dao import TenderAiDao
 from module_tender.entity.do.tender_do import BizTenderInfo
 from module_tender.entity.vo.tender_vo import (
     AiTenderAnalysisModel,
+    AiAnalysisHistoryItemModel,
     DeleteTenderModel,
     DistrictStatModel,
     StageStatModel,
@@ -22,6 +26,7 @@ from module_tender.entity.vo.tender_vo import (
 from module_tender.service.orchestrator.public_resources_service import PublicResourcesService
 from module_tender.agent.agent import tender_agent
 from utils.common_util import SqlalchemyUtil
+from utils.log_util import logger
 from utils.excel_util import ExcelUtil
 
 
@@ -117,8 +122,14 @@ class TenderService:
         :param db: orm对象
         :return: AI 分析结果
         """
+        history = await TenderAiDao.get_analysis_by_tender_id(db, tender_id)
+        if history and history.analysis_result:
+            try:
+                return AiTenderAnalysisModel.model_validate(history.analysis_result)
+            except Exception as e:
+                logger.warning(f"Failed to parse cached analysis result: {e}")
         last_result = None
-        async for state in tender_agent.run(tender_id, db):
+        async for state in tender_agent.run(tender_id, db, None):
             if state.get('analysis_result'):
                 last_result = state['analysis_result']
         
@@ -128,21 +139,107 @@ class TenderService:
         return cls._default_ai_analysis()
 
     @classmethod
-    async def analyze_tender_ai_stream(cls, tender_id: int, db: AsyncSession) -> AsyncIterable[str]:
+    async def get_ai_analysis_history(cls, db: AsyncSession, limit: int = 50) -> list[AiAnalysisHistoryItemModel]:
+        rows = await TenderAiDao.list_analysis_history(db, limit=limit)
+        history: list[AiAnalysisHistoryItemModel] = []
+        for analysis, project_name in rows:
+            analysis_result = analysis.analysis_result or {}
+            risks = analysis_result.get("risks") or []
+            if isinstance(risks, list) and len(risks) > 0:
+                risk_tag = str(risks[0])
+            else:
+                risk_tag = "无"
+            decision_conclusion = analysis_result.get("decisionConclusion") or analysis_result.get("decision_conclusion") or ""
+            analysis_time = analysis.update_time or analysis.create_time
+            analysis_time_str = analysis_time.strftime("%Y-%m-%d %H:%M") if analysis_time else ""
+            history.append(
+                AiAnalysisHistoryItemModel(
+                    analysis_id=analysis.analysis_id,
+                    tender_id=analysis.tender_id,
+                    project_name=project_name or "未知项目",
+                    analysis_time=analysis_time_str,
+                    score=analysis_result.get("score") or 0,
+                    risk_tag=risk_tag,
+                    decision_conclusion=decision_conclusion,
+                )
+            )
+        return history
+
+    @classmethod
+    async def analyze_tender_ai_stream(
+        cls, tender_id: int, db: AsyncSession, qualifications: list[str] | None = None
+    ) -> AsyncIterable[str]:
         """
         流式执行 AI 分析，返回进度和结果
         """
-        async for state in tender_agent.run(tender_id, db):
+        # 1. Check for historical analysis
+        history = await TenderAiDao.get_analysis_by_tender_id(db, tender_id)
+        if history and history.analysis_result:
             output = {
-                "progress": state.get("progress", 0),
-                "message": state.get("current_step", ""),
-                "result": None,
+                "progress": 100,
+                "message": "已加载历史分析结果",
+                "result": history.analysis_result,
             }
-
-            if state.get("analysis_result"):
-                output["result"] = state["analysis_result"].model_dump(by_alias=True)
-
             yield f"data: {json.dumps(output, ensure_ascii=False)}\n\n"
+            return
+
+        # 2. Run Agent
+        final_result = None
+        saved_result = False
+        try:
+            async for state in tender_agent.run(tender_id, db, qualifications or []):
+                output = {
+                    "progress": state.get("progress", 0),
+                    "message": state.get("current_step", ""),
+                    "result": None,
+                }
+
+                if state.get("analysis_result"):
+                    final_result = state["analysis_result"].model_dump(by_alias=True)
+                    if not saved_result:
+                        try:
+                            async with AsyncSessionLocal() as new_db:
+                                await TenderAiDao.save_or_update_analysis(new_db, tender_id, final_result)
+                                await new_db.commit()
+                            saved_result = True
+                        except Exception as e:
+                            logger.warning(f"Failed to save analysis result: {e}")
+                    output["result"] = final_result
+
+                yield f"data: {json.dumps(output, ensure_ascii=False)}\n\n"
+            
+            # 3. Save result (Normal completion)
+            if final_result and not saved_result:
+                try:
+                    await TenderAiDao.save_or_update_analysis(db, tender_id, final_result)
+                    await db.commit()
+                except Exception as e:
+                    await db.rollback()
+                    logger.warning(f"Failed to save analysis result: {e}")
+                
+        except asyncio.CancelledError:
+            # Handle client disconnection gracefully
+            logger.info(f"Stream cancelled by client for tender {tender_id}")
+            # Try to save if we already have the result (e.g. cancelled during the last yield)
+            if final_result:
+                try:
+                    # Create a new session to save the result, as the original session might be cancelled/rolled back
+                    async with AsyncSessionLocal() as new_db:
+                        await TenderAiDao.save_or_update_analysis(new_db, tender_id, final_result)
+                        await new_db.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to save result after cancellation: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error during AI analysis stream: {e}")
+            await db.rollback()
+            # Yield error message to client
+            error_output = {
+                "progress": 0,
+                "message": f"分析出错: {str(e)}",
+                "error": True
+            }
+            yield f"data: {json.dumps(error_output, ensure_ascii=False)}\n\n"
 
     @classmethod
     async def add_tender(cls, tender: TenderModel, db: AsyncSession) -> BizTenderInfo:

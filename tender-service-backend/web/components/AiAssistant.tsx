@@ -64,7 +64,7 @@ type PageResponse<T> = {
   hasNext: boolean;
 };
 
-const AiAssistant: React.FC = () => {
+const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({ onProgressChange }) => {
   const [view, setView] = useState<'main' | 'history'>('main');
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [tenders, setTenders] = useState<SimpleTender[]>([]);
@@ -83,12 +83,30 @@ const AiAssistant: React.FC = () => {
   const [stepMessage, setStepMessage] = useState("");
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'insight' | 'risk' | 'strategy'>('insight');
-  const progressTimerRef = useRef<number | null>(null);
+  const progressRafRef = useRef<number | null>(null);
+  const progressRef = useRef<number>(0);
+  const progressTargetRef = useRef<number>(0);
+  const progressSpeedRef = useRef<number>(0);
+  const desiredSpeedRef = useRef<number>(0);
+  const lastFrameRef = useRef<number>(0);
+  const pauseUntilRef = useRef<number>(0);
+  const pendingMilestoneRef = useRef<boolean>(false);
+  const resumeTargetRef = useRef<number>(0);
+  const isAnalyzingRef = useRef<boolean>(false);
+  const progressCallbackRef = useRef<(value: number) => void>(() => {});
+  const flashTimeoutRef = useRef<number | null>(null);
+  const [milestoneFlash, setMilestoneFlash] = useState(false);
 
   const [qualifications, setQualifications] = useState<string[]>([
-    "市政公用工程施工总承包一级",
-    "建筑装修装饰工程专业承包二级", 
-    "电子与智能化工程专业承包二级"
+    "具有良好的商业信誉和健全的财务会计制度",
+    "具有施工劳务资质",
+    "具有市政公用工程施工总承包贰级",
+    "具有环保工程专业承包贰级",
+    "具有两名一级市政公用工程建造师的项目经理",
+    "具备有效的安全生产考核合格证书",
+    "有履行合同所需的资金、技术能力、设备能力和人员",
+    "没有处于被责令停业；财产被接管、冻结或破产状态",
+    "近年内有多项园林绿化工程项目业绩"
   ]);
 
   const fetchTenderOptions = async (opts: { pageSize: number; projectCode?: string; projectName?: string }) => {
@@ -127,6 +145,16 @@ const AiAssistant: React.FC = () => {
     };
     void run();
   }, []);
+
+  useEffect(() => {
+    isAnalyzingRef.current = isAnalyzing;
+  }, [isAnalyzing]);
+
+  useEffect(() => {
+    if (onProgressChange) {
+      progressCallbackRef.current = onProgressChange;
+    }
+  }, [onProgressChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -213,48 +241,118 @@ const AiAssistant: React.FC = () => {
     };
   };
 
+  const updateProgress = (value: number) => {
+    progressRef.current = value;
+    setProgress(value);
+    progressCallbackRef.current(value);
+  };
+
+  const stopProgressAnimation = () => {
+    if (progressRafRef.current) {
+      cancelAnimationFrame(progressRafRef.current);
+      progressRafRef.current = null;
+    }
+  };
+
+  const flashMilestone = () => {
+    setMilestoneFlash(true);
+    if (flashTimeoutRef.current) {
+      window.clearTimeout(flashTimeoutRef.current);
+    }
+    flashTimeoutRef.current = window.setTimeout(() => {
+      setMilestoneFlash(false);
+      flashTimeoutRef.current = null;
+    }, 450);
+  };
+
+  const startProgressAnimation = () => {
+    stopProgressAnimation();
+    const baseSpeed = 0.004;
+    const boostSpeed = 0.012;
+    progressSpeedRef.current = baseSpeed;
+    desiredSpeedRef.current = baseSpeed;
+    lastFrameRef.current = 0;
+
+    const step = (ts: number) => {
+      if (!isAnalyzingRef.current) {
+        stopProgressAnimation();
+        return;
+      }
+      if (!lastFrameRef.current) {
+        lastFrameRef.current = ts;
+        progressRafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      const dt = ts - lastFrameRef.current;
+      lastFrameRef.current = ts;
+      if (pauseUntilRef.current > ts) {
+        progressRafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      progressSpeedRef.current += (desiredSpeedRef.current - progressSpeedRef.current) * 0.08;
+      const next = Math.min(progressRef.current + progressSpeedRef.current * dt, progressTargetRef.current);
+      updateProgress(next);
+      if (next >= progressTargetRef.current - 0.01) {
+        if (pendingMilestoneRef.current) {
+          pendingMilestoneRef.current = false;
+          pauseUntilRef.current = ts + 500;
+          if (resumeTargetRef.current > progressTargetRef.current) {
+            progressTargetRef.current = resumeTargetRef.current;
+            desiredSpeedRef.current = baseSpeed;
+          }
+          flashMilestone();
+        }
+      }
+      progressRafRef.current = requestAnimationFrame(step);
+    };
+
+    progressRafRef.current = requestAnimationFrame(step);
+  };
+
   const handleAnalyze = () => {
     if (!selectedProject) return;
     setIsAnalyzing(true);
     setResult(null);
-    setProgress(0);
+    updateProgress(0);
     setStepMessage("准备开始分析...");
     setAnalyzeError(null);
     setActiveTab('insight');
+    progressTargetRef.current = 90;
+    resumeTargetRef.current = 90;
+    pauseUntilRef.current = 0;
+    pendingMilestoneRef.current = false;
+    progressRef.current = 0;
+    startProgressAnimation();
 
-    const url = getApiUrl(`/tenders/${selectedProject}/ai-analysis/stream`);
-    const eventSource = new EventSource(url);
-
-    if (progressTimerRef.current) {
-      window.clearInterval(progressTimerRef.current);
-      progressTimerRef.current = null;
+    const params = new URLSearchParams();
+    if (qualifications.length > 0) {
+      params.set('qualifications', JSON.stringify(qualifications));
     }
-    progressTimerRef.current = window.setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + 0.5; 
-        return next >= 99 ? 99 : next;
-      });
-    }, 100);
+    const query = params.toString();
+    const url = getApiUrl(`/tenders/${selectedProject}/ai-analysis/stream${query ? `?${query}` : ''}`);
+    const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.progress) {
-          setProgress((prev) => {
-             return data.progress > prev ? data.progress : prev;
-          });
+        if (typeof data.progress === 'number') {
+          const target = Math.min(data.progress, 99);
+          if (target > progressRef.current) {
+            progressTargetRef.current = target;
+            resumeTargetRef.current = Math.max(target, 90);
+            desiredSpeedRef.current = 0.012;
+            pendingMilestoneRef.current = true;
+          }
         }
         if (data.message) {
           setStepMessage(data.message);
         }
         if (data.result) {
           setResult(augmentResult(data.result));
-          setProgress(100);
+          progressTargetRef.current = 100;
+          updateProgress(100);
           setIsAnalyzing(false);
-          if (progressTimerRef.current) {
-            window.clearInterval(progressTimerRef.current);
-            progressTimerRef.current = null;
-          }
+          stopProgressAnimation();
           eventSource.close();
         }
       } catch (error) {
@@ -265,13 +363,32 @@ const AiAssistant: React.FC = () => {
     eventSource.onerror = (error) => {
       console.error("SSE Error", error);
       eventSource.close();
-      if (progressTimerRef.current) {
-        window.clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
       setAnalyzeError("分析过程中出现错误，请稍后重试");
       setIsAnalyzing(false);
+      stopProgressAnimation();
     };
+  };
+
+  const handleViewReport = async (tenderId: number) => {
+    setView('main');
+    setSelectedProject(tenderId);
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+    setProgress(100);
+    setStepMessage("加载历史分析结果...");
+    try {
+      const res = await fetch(getApiUrl(`/tenders/${tenderId}/ai-analysis`));
+      const data = await res.json();
+      if (!data.success || !data.data) {
+        throw new Error(data.msg || '加载失败');
+      }
+      setResult(augmentResult(data.data));
+      setActiveTab('insight');
+    } catch (error) {
+      setAnalyzeError("加载历史分析失败，请稍后重试");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleAddQualification = () => {
@@ -335,9 +452,7 @@ const AiAssistant: React.FC = () => {
 
   const selectedTenderObj = tenders.find(t => t.tenderId === selectedProject) || searchResults.find(t => t.tenderId === selectedProject);
 
-  if (view === 'history') {
-    return <AnalysisHistory onBack={() => setView('main')} />;
-  }
+  if (view === 'history') return <AnalysisHistory onBack={() => setView('main')} onViewReport={handleViewReport} />;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-[1920px] mx-auto h-full flex flex-col">
@@ -560,11 +675,8 @@ const AiAssistant: React.FC = () => {
              <div className="h-[600px] flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl shadow-sm p-12">
                 <div className="relative mb-6">
                   <div className="h-20 w-20 rounded-full border-4 border-slate-100"></div>
-                  <div 
-                    className="absolute top-0 left-0 h-20 w-20 rounded-full border-4 border-indigo-600 border-t-transparent transition-all duration-300 ease-out"
-                    style={{ transform: `rotate(${progress * 3.6}deg)` }}
-                  ></div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-900 font-bold text-lg">
+                  <div className="absolute top-0 left-0 h-20 w-20 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-900 font-bold text-lg ${milestoneFlash ? 'animate-pulse' : ''}`}>
                     {Math.floor(progress)}%
                   </div>
                 </div>
@@ -579,7 +691,7 @@ const AiAssistant: React.FC = () => {
                    <span className={progress >= 90 ? "text-indigo-600 font-medium" : ""}>策略生成</span>
                 </div>
                 <div className="w-full max-w-md bg-slate-100 h-1 mt-2 rounded-full overflow-hidden">
-                   <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                   <div className={`h-full bg-indigo-600 transition-all duration-500 ${milestoneFlash ? 'shadow-[0_0_12px_rgba(99,102,241,0.7)]' : ''}`} style={{ width: `${progress}%` }}></div>
                 </div>
              </div>
           )}
