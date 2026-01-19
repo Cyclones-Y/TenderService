@@ -193,35 +193,23 @@ const AiAssistant: React.FC = () => {
   }, [isSelectOpen, searchTerm]);
 
   const augmentResult = (base: any): AnalysisResult => {
-    const score = base.score || 75;
+    // Backend now returns these fields, but we keep safe fallbacks just in case
+    // Note: Check both camelCase and snake_case to handle potential serialization differences
     return {
         ...base,
-        profitability: base.profitability || "12% - 15%",
-        difficulty: base.difficulty || "高 (管网复杂)",
-        radarData: base.radarData || [
-          { subject: '资质匹配', A: 95, fullMark: 100 },
-          { subject: '资金风险', A: score > 80 ? 90 : 60, fullMark: 100 },
-          { subject: '技术难度', A: 70, fullMark: 100 },
-          { subject: '竞争程度', A: 85, fullMark: 100 },
-          { subject: '利润空间', A: 65, fullMark: 100 },
-        ],
-        competitors: base.competitors || [
-          { name: '北京建工集团有限责任公司', reason: '该区历史中标大户', winRate: 32, threatLevel: 'High' },
-          { name: '北京城建集团', reason: '常驻施工队伍', winRate: 28, threatLevel: 'High' },
-          { name: '中铁建设集团', reason: '资质完全匹配', winRate: 15, threatLevel: 'Medium' },
-          { name: '某某市政工程有限公司', reason: '价格战常客', winRate: 8, threatLevel: 'Low' },
-        ],
-        priceStats: base.priceStats || {
-          avgDiscount: '4.2%',
-          maxDiscount: '6.5%',
-          distribution: [
-            { range: '0-2%', count: 5 },
-            { range: '2-4%', count: 12 },
-            { range: '4-6%', count: 18 },
-            { range: '6-8%', count: 6 },
-            { range: '>8%', count: 2 },
-          ]
-        }
+        score: base.score || 0,
+        profitability: base.profitability || "测算中...",
+        difficulty: base.difficulty || "评估中...",
+        radarData: base.radarData || base.radar_data || [],
+        competitors: base.competitors || [],
+        priceStats: base.priceStats || base.price_stats || {
+          avgDiscount: '-',
+          maxDiscount: '-',
+          distribution: []
+        },
+        features: base.features || [],
+        decisionConclusion: base.decisionConclusion || base.decision_conclusion || '',
+        focusPoints: base.focusPoints || base.focus_points || []
     };
   };
 
@@ -304,33 +292,44 @@ const AiAssistant: React.FC = () => {
 
   const scoreMeta = useMemo(() => {
     if (!result) return null;
-    if (result.score >= 80) {
-      return {
-        label: '胜算高',
-        badgeClassName: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        dotColor: 'text-emerald-500',
-        hint: '击败了 85% 的类似项目',
-        conclusion: '整体来看，该项目胜算较高，建议作为重点目标积极推进。',
-        features: ['资质完美匹配', '预算充足', '竞争烈度低'],
-      };
-    }
-    if (result.score >= 60) {
-      return {
-        label: '机会适中',
-        badgeClassName: 'bg-amber-50 text-amber-800 border-amber-200',
-        dotColor: 'text-amber-500',
-        hint: '建议谨慎参与',
-        conclusion: '整体来看，该项目机会与风险并存，建议进行详细评估后再做决策。',
-        features: ['资质符合', '存在价格博弈'],
-      };
-    }
-    return {
+    
+    // Default meta based on score ranges for color/styling
+    let meta = {
       label: '风险较高',
       badgeClassName: 'bg-red-50 text-red-800 border-red-200',
       dotColor: 'text-red-500',
       hint: '建议谨慎参与',
-      conclusion: '整体来看，该项目存在较大风险，建议谨慎参与或放弃。',
-      features: ['风险极高', '利润空间低'],
+    };
+
+    if (result.score >= 80) {
+      meta = {
+        label: '胜算高',
+        badgeClassName: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        dotColor: 'text-emerald-500',
+        hint: '击败了 85% 的类似项目',
+      };
+    } else if (result.score >= 60) {
+      meta = {
+        label: '机会适中',
+        badgeClassName: 'bg-amber-50 text-amber-800 border-amber-200',
+        dotColor: 'text-amber-500',
+        hint: '建议谨慎参与',
+      };
+    }
+    
+    return {
+        ...meta,
+        // Use backend data if available, otherwise fall back to generic messages based on score
+        conclusion: result.decisionConclusion || (
+            result.score >= 80 ? '整体来看，该项目胜算较高，建议作为重点目标积极推进。' :
+            result.score >= 60 ? '整体来看，该项目机会与风险并存，建议进行详细评估后再做决策。' :
+            '整体来看，该项目存在较大风险，建议谨慎参与或放弃。'
+        ),
+        features: result.features && result.features.length > 0 ? result.features : (
+            result.score >= 80 ? ['资质完美匹配', '预算充足', '竞争烈度低'] :
+            result.score >= 60 ? ['资质符合', '存在价格博弈'] :
+            ['风险极高', '利润空间低']
+        )
     };
   }, [result]);
 
@@ -598,7 +597,7 @@ const AiAssistant: React.FC = () => {
                      </div>
                   </div>
 
-                  <CardContent className="h-[220px] flex flex-col pt-6">
+                  <CardContent className="min-h-[220px] flex flex-col pt-6 pb-6">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 w-full text-left">综合推荐指数</p>
                     
                     <div className="flex-1 flex flex-col items-center justify-center w-full">
@@ -612,17 +611,16 @@ const AiAssistant: React.FC = () => {
 
                       {/* 状态提示框 */}
                       <div 
-                        className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors mb-4 ${scoreMeta?.badgeClassName}`}
-                        style={{ width: '25ch' }}
+                        className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors mb-4 w-full max-w-[80%] ${scoreMeta?.badgeClassName}`}
                       >
-                        <span className={`text-[10px] ${scoreMeta?.dotColor}`}>●</span>
-                        <span>模型判断：{scoreMeta?.label}</span>
+                        <span className={`text-[10px] ${scoreMeta?.dotColor} shrink-0`}>●</span>
+                        <span className="truncate">模型判断：{scoreMeta?.label}</span>
                       </div>
 
                       {/* AI 特征标签 */}
-                      <div className="flex gap-2 flex-wrap justify-center">
+                      <div className="flex gap-2 flex-wrap justify-center w-full max-h-[60px] overflow-hidden">
                           {scoreMeta?.features?.map((feature, i) => (
-                             <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                             <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 truncate max-w-[100%]">
                                 #{feature}
                              </span>
                           ))}
@@ -652,19 +650,19 @@ const AiAssistant: React.FC = () => {
                 </Card>
 
                 <Card className="border-slate-200 shadow-sm">
-                  <CardContent className="h-[220px] flex flex-col pt-6">
+                  <CardContent className="min-h-[220px] flex flex-col pt-6 pb-6">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">决策建议</p>
-                    <div className="mt-4 text-2xl font-bold text-slate-900 leading-tight">
-                      {result.score >= 80 ? '建议推进' : result.score >= 60 ? '建议评估后推进' : '建议暂缓'}
+                    <div className="mt-2 text-xl font-bold text-slate-900 leading-snug line-clamp-4" title={scoreMeta?.conclusion}>
+                      {scoreMeta?.conclusion}
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-400 uppercase font-semibold">预估利润率</p>
-                        <p className="text-lg font-bold text-slate-900 mt-1">{result.profitability}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs text-slate-400 uppercase font-semibold truncate">预估利润率</p>
+                        <p className="text-lg font-bold text-slate-900 mt-1 truncate" title={result.profitability}>{result.profitability}</p>
                       </div>
-                      <div className="border-l border-slate-100 pl-4">
-                        <p className="text-xs text-slate-400 uppercase font-semibold">实施难度</p>
-                        <p className="text-lg font-bold text-slate-900 mt-1">{result.difficulty}</p>
+                      <div className="border-l border-slate-100 pl-4 min-w-0">
+                        <p className="text-xs text-slate-400 uppercase font-semibold truncate">实施难度</p>
+                        <p className="text-lg font-bold text-slate-900 mt-1 truncate" title={result.difficulty}>{result.difficulty}</p>
                       </div>
                     </div>
                     <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
@@ -731,18 +729,30 @@ const AiAssistant: React.FC = () => {
                               <Target size={16} className="text-indigo-600"/> 重点关注
                             </h4>
                             <ul className="space-y-4">
-                               <li className="flex gap-3 text-base text-slate-700">
-                                  <span className="font-bold text-slate-400">01</span>
-                                  <span>工期极其紧张，需提前锁定劳务班组。</span>
-                               </li>
-                               <li className="flex gap-3 text-base text-slate-700">
-                                  <span className="font-bold text-slate-400">02</span>
-                                  <span>主要材料不调差，需与供应商锁定价格。</span>
-                               </li>
-                               <li className="flex gap-3 text-base text-slate-700">
-                                  <span className="font-bold text-slate-400">03</span>
-                                  <span>数字化平台为加分项，建议引用过往案例。</span>
-                               </li>
+                               {result.focusPoints && result.focusPoints.length > 0 ? (
+                                   result.focusPoints.map((point, idx) => (
+                                       <li key={idx} className="flex gap-3 text-base text-slate-700">
+                                          <span className="font-bold text-slate-400">{String(idx + 1).padStart(2, '0')}</span>
+                                          <span>{point}</span>
+                                       </li>
+                                   ))
+                               ) : (
+                                   // Fallback if no focus points (e.g. old data or analysis failed)
+                                   <>
+                                       <li className="flex gap-3 text-base text-slate-700">
+                                          <span className="font-bold text-slate-400">01</span>
+                                          <span>工期极其紧张，需提前锁定劳务班组。</span>
+                                       </li>
+                                       <li className="flex gap-3 text-base text-slate-700">
+                                          <span className="font-bold text-slate-400">02</span>
+                                          <span>主要材料不调差，需与供应商锁定价格。</span>
+                                       </li>
+                                       <li className="flex gap-3 text-base text-slate-700">
+                                          <span className="font-bold text-slate-400">03</span>
+                                          <span>数字化平台为加分项，建议引用过往案例。</span>
+                                       </li>
+                                   </>
+                               )}
                             </ul>
                          </div>
                       </div>

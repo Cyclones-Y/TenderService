@@ -124,6 +124,50 @@ class AiRequirementItemModel(BaseModel):
     met: bool = Field(description='是否满足该要求')
 
 
+class RadarItemModel(BaseModel):
+    """
+    AI 智能参谋 - 雷达图数据
+    """
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    
+    subject: str = Field(description='维度名称')
+    a: int = Field(description='得分', alias='A')
+    full_mark: int = Field(description='满分')
+
+
+class CompetitorModel(BaseModel):
+    """
+    AI 智能参谋 - 竞争对手分析
+    """
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    
+    name: str = Field(description='竞争对手名称')
+    reason: str = Field(description='竞争原因')
+    win_rate: float = Field(description='历史胜率(%)')
+    threat_level: str = Field(description='威胁等级: High, Medium, Low')
+
+
+class PriceDistributionItemModel(BaseModel):
+    """
+    AI 智能参谋 - 价格分布项
+    """
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    
+    range: str = Field(description='价格区间')
+    count: int = Field(description='数量')
+
+
+class PriceStatsModel(BaseModel):
+    """
+    AI 智能参谋 - 价格分析
+    """
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    
+    avg_discount: str = Field(description='平均下浮率')
+    max_discount: str = Field(description='最大下浮率')
+    distribution: list[PriceDistributionItemModel] = Field(description='价格分布')
+
+
 class AiTenderAnalysisModel(BaseModel):
     """
     AI 智能参谋 - 项目分析结果
@@ -136,3 +180,15 @@ class AiTenderAnalysisModel(BaseModel):
     risks: list[str] = Field(description='风险列表')
     requirements: list[AiRequirementItemModel] = Field(description='关键/硬性要求列表')
     strategy: str = Field(description='投标响应策略建议')
+    
+    # New fields
+    profitability: str = Field(description='预估利润率')
+    difficulty: str = Field(description='实施难度')
+    radar_data: list[RadarItemModel] = Field(description='能力维度雷达图数据')
+    competitors: list[CompetitorModel] = Field(description='潜在竞争对手预测')
+    price_stats: PriceStatsModel = Field(description='同类项目报价分布')
+    
+    # Dynamic tags and conclusion
+    features: list[str] = Field(description='项目特征标签（如：资质完美匹配、预算充足）')
+    decision_conclusion: str = Field(description='决策建议结论')
+    focus_points: list[str] = Field(description='重点关注事项')

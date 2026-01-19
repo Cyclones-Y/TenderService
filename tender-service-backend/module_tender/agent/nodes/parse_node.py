@@ -8,7 +8,7 @@ class ParseNode:
             return {"error": "无内容解析"}
             
         def parse(h):
-            soup = BeautifulSoup(h, 'html.parser')
+            soup = BeautifulSoup(h, 'lxml')
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
             return soup.get_text(separator="\n", strip=True)
