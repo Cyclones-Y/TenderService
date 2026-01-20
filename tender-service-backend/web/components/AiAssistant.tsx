@@ -96,6 +96,14 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
   const progressCallbackRef = useRef<(value: number) => void>(() => {});
   const flashTimeoutRef = useRef<number | null>(null);
   const [milestoneFlash, setMilestoneFlash] = useState(false);
+  
+  // Progress state tracking
+  const waitStartTimeRef = useRef<number>(0);
+  const waitingForStageRef = useRef<number>(0);
+  const serverLimitRef = useRef<number>(25); // Max progress allowed by server
+  const STAGE_THRESHOLDS = [30, 60, 90];
+  const STAGE_BUFFER = 5;
+  const WAIT_TIMEOUT = 30000;
 
   const [qualifications, setQualifications] = useState<string[]>([
     "具有良好的商业信誉和健全的财务会计制度",
@@ -265,14 +273,14 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
     }, 450);
   };
 
-  const BASE_SPEED = 0.001; // 4% per second
-  const BOOST_SPEED = 0.012; // 12% per second
-  const PROGRESS_STAGES = [20, 40, 60, 80, 95];
-
   const startProgressAnimation = () => {
     stopProgressAnimation();
-    progressSpeedRef.current = BASE_SPEED;
-    desiredSpeedRef.current = BASE_SPEED;
+    const SPEED_SLOW = 0.002; // 0.2% per second (Very slow for analysis)
+    const SPEED_NORMAL = 0.005; // 0.5% per second
+    const SPEED_FAST = 0.012; // 1.2% per second (Boost)
+    
+    progressSpeedRef.current = SPEED_NORMAL;
+    desiredSpeedRef.current = SPEED_NORMAL;
     lastFrameRef.current = 0;
 
     const step = (ts: number) => {
@@ -291,20 +299,102 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
         progressRafRef.current = requestAnimationFrame(step);
         return;
       }
+      
+      // Calculate next progress
       progressSpeedRef.current += (desiredSpeedRef.current - progressSpeedRef.current) * 0.08;
       const next = Math.min(progressRef.current + progressSpeedRef.current * dt, progressTargetRef.current);
       updateProgress(next);
+
+      // Check if waiting at a stage boundary
+      if (Math.abs(next - progressTargetRef.current) < 0.1 && progressTargetRef.current < 99) {
+          if (!waitStartTimeRef.current) {
+              waitStartTimeRef.current = ts;
+          } else {
+              // Timeout check (30s)
+              if (ts - waitStartTimeRef.current > WAIT_TIMEOUT) {
+                 setAnalyzeError("分析响应超时，请重试");
+                 setIsAnalyzing(false);
+                 stopProgressAnimation();
+                 return;
+              }
+              
+              // If waiting, check if server has unlocked the next stage
+              if (serverLimitRef.current > progressTargetRef.current) {
+                  // Determine next step target (don't jump to serverLimit immediately)
+                  let nextTarget = 99;
+                  if (progressTargetRef.current < 25) nextTarget = 25;
+                  else if (progressTargetRef.current < 55) nextTarget = 55;
+                  else if (progressTargetRef.current < 85) nextTarget = 85;
+                  
+                  // Cap at server limit
+                  if (nextTarget > serverLimitRef.current) nextTarget = serverLimitRef.current;
+                  
+                  progressTargetRef.current = nextTarget;
+                  
+                  // Determine speed based on stage and server lag
+                  // If server is ahead of our next target, we catch up fast
+                  if (serverLimitRef.current > nextTarget) {
+                      desiredSpeedRef.current = SPEED_FAST;
+                  } else {
+                      // We are entering a stage that the server is currently processing
+                      if (nextTarget <= 25) desiredSpeedRef.current = SPEED_NORMAL; // File Fetch
+                      else if (nextTarget <= 55) desiredSpeedRef.current = SPEED_SLOW; // Parsing (Slow)
+                      else if (nextTarget <= 85) desiredSpeedRef.current = SPEED_SLOW; // Analysis (Slow)
+                      else desiredSpeedRef.current = SPEED_NORMAL; // Final
+                  }
+
+                  pendingMilestoneRef.current = true;
+                  waitStartTimeRef.current = 0; // Stop waiting
+              }
+          }
+      } else {
+          waitStartTimeRef.current = 0;
+      }
+
+      // Handle milestone completion (arrival at target)
       if (next >= progressTargetRef.current - 0.01) {
+        // If we just arrived at a target
         if (pendingMilestoneRef.current) {
           pendingMilestoneRef.current = false;
-          pauseUntilRef.current = ts + 500;
-          if (resumeTargetRef.current > progressTargetRef.current) {
-            progressTargetRef.current = resumeTargetRef.current;
-            desiredSpeedRef.current = BASE_SPEED;
-          }
+          pauseUntilRef.current = ts + 500; // Pause for visual effect
           flashMilestone();
+          
+          // During this pause/arrival, check if we can continue immediately after pause
+          // This sets up the target for AFTER the pause
+          if (serverLimitRef.current > progressTargetRef.current) {
+              let nextTarget = 99;
+              if (progressTargetRef.current < 25) nextTarget = 25;
+              else if (progressTargetRef.current < 55) nextTarget = 55;
+              else if (progressTargetRef.current < 85) nextTarget = 85;
+              
+              if (nextTarget > serverLimitRef.current) nextTarget = serverLimitRef.current;
+              
+              // We set resumeTargetRef to tell the system where to go after pause
+              resumeTargetRef.current = nextTarget;
+          } else {
+              resumeTargetRef.current = progressTargetRef.current; // Stay here
+          }
         }
       }
+      
+      // This block handles resuming from pause
+      if (resumeTargetRef.current > progressTargetRef.current) {
+           progressTargetRef.current = resumeTargetRef.current;
+           
+           // Determine speed based on stage and server lag
+           if (serverLimitRef.current > progressTargetRef.current) {
+               desiredSpeedRef.current = SPEED_FAST;
+           } else {
+               // We are entering a stage that the server is currently processing
+               if (progressTargetRef.current <= 25) desiredSpeedRef.current = SPEED_NORMAL;
+               else if (progressTargetRef.current <= 55) desiredSpeedRef.current = SPEED_SLOW;
+               else if (progressTargetRef.current <= 85) desiredSpeedRef.current = SPEED_SLOW;
+               else desiredSpeedRef.current = SPEED_NORMAL;
+           }
+           
+           pendingMilestoneRef.current = true; // Set pending for the NEW target
+      }
+
       progressRafRef.current = requestAnimationFrame(step);
     };
 
@@ -320,13 +410,15 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
     setAnalyzeError(null);
     setActiveTab('insight');
     
-    // Initial creep to first stage
-    const firstStage = PROGRESS_STAGES[0];
-    progressTargetRef.current = firstStage;
-    resumeTargetRef.current = firstStage;
+    // Initial State: Target the first stage buffer
+    waitingForStageRef.current = STAGE_THRESHOLDS[0];
+    progressTargetRef.current = STAGE_THRESHOLDS[0] - STAGE_BUFFER; // 25
+    resumeTargetRef.current = STAGE_THRESHOLDS[0] - STAGE_BUFFER; 
+    serverLimitRef.current = 25; // Reset server limit
     
     pauseUntilRef.current = 0;
-    pendingMilestoneRef.current = false;
+    pendingMilestoneRef.current = true; // Ensure first leg (0->25) triggers pause
+    waitStartTimeRef.current = 0;
     progressRef.current = 0;
     startProgressAnimation();
 
@@ -342,16 +434,16 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
       try {
         const data = JSON.parse(event.data);
         if (typeof data.progress === 'number') {
-          const target = Math.min(data.progress, 99);
-          if (target > progressRef.current) {
-            progressTargetRef.current = target;
-            
-            // Calculate next stage to creep towards
-            const nextStage = PROGRESS_STAGES.find(s => s > target) || 99;
-            resumeTargetRef.current = nextStage;
-            
-            desiredSpeedRef.current = BOOST_SPEED;
-            pendingMilestoneRef.current = true;
+          const serverProgress = data.progress;
+          
+          let nextLimit = 25;
+          if (serverProgress >= 85) nextLimit = 99; // Finalizing
+          else if (serverProgress >= 55) nextLimit = 85; // Analysis done
+          else if (serverProgress >= 25) nextLimit = 55; // Parsing done
+          
+          // Only update if greater (never rollback)
+          if (nextLimit > serverLimitRef.current) {
+            serverLimitRef.current = nextLimit;
           }
         }
         if (data.message) {
