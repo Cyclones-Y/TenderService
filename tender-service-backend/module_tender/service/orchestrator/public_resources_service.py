@@ -88,7 +88,7 @@ class PublicResourcesService:
         cls,
         start_date: str,
         end_date: str,
-        db: AsyncSession,
+        db: AsyncSession,  # 此处的 db 在并行模式下将作为基准，子任务会创建自己的 session
         page: int = 1,
         size: int = 100,
         *,
@@ -98,64 +98,55 @@ class PublicResourcesService:
         include_gov_notice: bool = True,
         include_gov_win_candidate: bool = True,
     ) -> dict[str, int]:
-        result: dict[str, int] = {"plan": 0, "notice": 0, "win_candidate": 0, "gov_notice": 0, "total": 0}
+        result: dict[str, int] = {
+            "plan": 0,
+            "notice": 0,
+            "win_candidate": 0,
+            "gov_notice": 0,
+            "gov_win_candidate": 0,
+            "total": 0,
+        }
 
-        coroutines: list[asyncio.Future[tuple[str, int]]] = []
+        # 定义一个包装函数，为每个并行任务创建独立的数据库会话
+        async def run_task(task_key, task_func, **kwargs):
+            async with AsyncSessionLocal() as task_db:
+                try:
+                    count = await task_func(db=task_db, **kwargs)
+                    return task_key, count
+                except Exception as e:
+                    logger.error(f"Error in parallel task {task_key}: {e}")
+                    return task_key, 0
+
+        coroutines = []
 
         if include_plan:
-            async def _plan_task() -> tuple[str, int]:
-                count = await cls.fetch_tender_plan(
-                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
-                )
-                return "plan", count
-
-            coroutines.append(_plan_task())
+            coroutines.append(run_task("plan", cls.fetch_tender_plan, start_date=start_date, end_date=end_date, page=page, size=size))
 
         if include_notice:
-            async def _notice_task() -> tuple[str, int]:
-                count = await cls.fetch_tender_notice(
-                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
-                )
-                return "notice", count
-
-            coroutines.append(_notice_task())
+            coroutines.append(run_task("notice", cls.fetch_tender_notice, start_date=start_date, end_date=end_date, page=page, size=size))
 
         if include_win_candidate:
-            async def _win_candidate_task() -> tuple[str, int]:
-                count = await cls.fetch_win_candidate(
-                    start_date=start_date, end_date=end_date, db=db, page=page, size=size
-                )
-                return "win_candidate", count
-
-            coroutines.append(_win_candidate_task())
+            coroutines.append(run_task("win_candidate", cls.fetch_win_candidate, start_date=start_date, end_date=end_date, page=page, size=size))
 
         if include_gov_notice:
-            async def _gov_notice_task() -> tuple[str, int]:
-                count = await cls.fetch_gov_tender_notice(
-                    start_date=start_date,
-                    end_date=end_date,
-                    db=db,
-                )
-                return "gov_notice", count
-
-            coroutines.append(_gov_notice_task())
+            coroutines.append(run_task("gov_notice", cls.fetch_gov_tender_notice, start_date=start_date, end_date=end_date))
 
         if include_gov_win_candidate:
-            async def _gov_win_candidate_task() -> tuple[str, int]:
-                count = await cls.fetch_gov_win_candidate(
-                    start_date=start_date,
-                    end_date=end_date,
-                    db=db,
-                )
-                return "gov_win_candidate", count
-
-            coroutines.append(_gov_win_candidate_task())
+            coroutines.append(run_task("gov_win_candidate", cls.fetch_gov_win_candidate, start_date=start_date, end_date=end_date))
 
         if coroutines:
-            results = await asyncio.gather(*coroutines)
-            result.update(dict(results))
+            # 并行执行所有任务
+            task_results = await asyncio.gather(*coroutines)
+            for key, count in task_results:
+                result[key] = count
 
-        result["total"] = result["plan"] + result["notice"] + result["win_candidate"] + result["gov_notice"]
+        result["total"] = (
+            result["plan"]
+            + result["notice"]
+            + result["win_candidate"]
+            + result["gov_notice"]
+            + result["gov_win_candidate"]
+        )
         return result
 
 
