@@ -53,8 +53,7 @@ class StrategyNode:
             competitors=result.competitors,
             price_stats=result.price_stats
         )
-        print("输出重点关注事项：" + str(final_model.focus_points))
-        
+
         return {
             "progress": 90,
             "current_step": "建议生成中",

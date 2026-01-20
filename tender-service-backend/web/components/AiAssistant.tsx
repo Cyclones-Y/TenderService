@@ -265,12 +265,14 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
     }, 450);
   };
 
+  const BASE_SPEED = 0.001; // 4% per second
+  const BOOST_SPEED = 0.012; // 12% per second
+  const PROGRESS_STAGES = [20, 40, 60, 80, 95];
+
   const startProgressAnimation = () => {
     stopProgressAnimation();
-    const baseSpeed = 0.004; // 4% per second
-    const boostSpeed = 0.012; // 12% per second
-    progressSpeedRef.current = baseSpeed;
-    desiredSpeedRef.current = baseSpeed;
+    progressSpeedRef.current = BASE_SPEED;
+    desiredSpeedRef.current = BASE_SPEED;
     lastFrameRef.current = 0;
 
     const step = (ts: number) => {
@@ -298,7 +300,7 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
           pauseUntilRef.current = ts + 500;
           if (resumeTargetRef.current > progressTargetRef.current) {
             progressTargetRef.current = resumeTargetRef.current;
-            desiredSpeedRef.current = baseSpeed;
+            desiredSpeedRef.current = BASE_SPEED;
           }
           flashMilestone();
         }
@@ -317,8 +319,12 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
     setStepMessage("准备开始分析...");
     setAnalyzeError(null);
     setActiveTab('insight');
-    progressTargetRef.current = 90;
-    resumeTargetRef.current = 90;
+    
+    // Initial creep to first stage
+    const firstStage = PROGRESS_STAGES[0];
+    progressTargetRef.current = firstStage;
+    resumeTargetRef.current = firstStage;
+    
     pauseUntilRef.current = 0;
     pendingMilestoneRef.current = false;
     progressRef.current = 0;
@@ -339,8 +345,12 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
           const target = Math.min(data.progress, 99);
           if (target > progressRef.current) {
             progressTargetRef.current = target;
-            resumeTargetRef.current = Math.max(target, 90);
-            desiredSpeedRef.current = 0.012;
+            
+            // Calculate next stage to creep towards
+            const nextStage = PROGRESS_STAGES.find(s => s > target) || 99;
+            resumeTargetRef.current = nextStage;
+            
+            desiredSpeedRef.current = BOOST_SPEED;
             pendingMilestoneRef.current = true;
           }
         }
@@ -691,7 +701,7 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
                    <span className={progress >= 90 ? "text-indigo-600 font-medium" : ""}>策略生成</span>
                 </div>
                 <div className="w-full max-w-md bg-slate-100 h-1 mt-2 rounded-full overflow-hidden">
-                   <div className={`h-full bg-indigo-600 transition-all duration-500 ${milestoneFlash ? 'shadow-[0_0_12px_rgba(99,102,241,0.7)]' : ''}`} style={{ width: `${progress}%` }}></div>
+                   <div className={`h-full bg-indigo-600 ${milestoneFlash ? 'shadow-[0_0_12px_rgba(99,102,241,0.7)]' : ''}`} style={{ width: `${progress}%` }}></div>
                 </div>
              </div>
           )}
