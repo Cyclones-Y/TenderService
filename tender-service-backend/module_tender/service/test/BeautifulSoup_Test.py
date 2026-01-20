@@ -4,8 +4,8 @@ import asyncio
 
 from pydantic import BaseModel, Field
 
-from module_tender.service.gov_procurement.base import GovProcurementBase
-from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
+from module_tender.service.beijing_gov_procurement.base import GovProcurementBase
+from module_tender.service.beijing_gov_procurement.tender_notice import GovTenderNoticeFetcher
 from module_tender.service.integration.structured_output import extract_structured_data
 from prompts.prompts import  get_classify_landscaping_prompt
 

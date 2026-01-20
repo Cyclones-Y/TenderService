@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from module_tender.dao.tender_dao import TenderDao
 from module_tender.entity.structured_entity.gov_tender_notice_entity import GovTenderNoticeEntity
 from module_tender.entity.vo.tender_vo import TenderModel
-from module_tender.service.gov_procurement.base import GovProcurementBase, Landscaping
+from module_tender.service.beijing_gov_procurement.base import GovProcurementBase, Landscaping
 from module_tender.service.integration.structured_output import extract_structured_data
 
 

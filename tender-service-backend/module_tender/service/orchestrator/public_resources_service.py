@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.database import AsyncSessionLocal
-from module_tender.service.gov_procurement.tender_notice import GovTenderNoticeFetcher
-from module_tender.service.gov_procurement.win_candidate import GovWinCandidateFetcher
+from module_tender.service.beijing_gov_procurement.tender_notice import GovTenderNoticeFetcher
+from module_tender.service.beijing_gov_procurement.win_candidate import GovWinCandidateFetcher
 from module_tender.service.public_resources.tender_notice import TenderNoticeFetcher
 from module_tender.service.public_resources.tender_plan import TenderPlanFetcher
 from module_tender.service.public_resources.win_candidate import WinCandidateFetcher

@@ -103,7 +103,6 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
   const serverLimitRef = useRef<number>(25); // Max progress allowed by server
   const STAGE_THRESHOLDS = [30, 60, 90];
   const STAGE_BUFFER = 5;
-  const WAIT_TIMEOUT = 30000;
 
   const [qualifications, setQualifications] = useState<string[]>([
     "具有良好的商业信誉和健全的财务会计制度",
@@ -275,7 +274,7 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
 
   const startProgressAnimation = () => {
     stopProgressAnimation();
-    const SPEED_SLOW = 0.002; // 0.2% per second (Very slow for analysis)
+    const SPEED_SLOW = 0.001; // 0.2% per second (Very slow for analysis)
     const SPEED_NORMAL = 0.005; // 0.5% per second
     const SPEED_FAST = 0.012; // 1.2% per second (Boost)
     
@@ -310,14 +309,6 @@ const AiAssistant: React.FC<{ onProgressChange?: (value: number) => void }> = ({
           if (!waitStartTimeRef.current) {
               waitStartTimeRef.current = ts;
           } else {
-              // Timeout check (30s)
-              if (ts - waitStartTimeRef.current > WAIT_TIMEOUT) {
-                 setAnalyzeError("分析响应超时，请重试");
-                 setIsAnalyzing(false);
-                 stopProgressAnimation();
-                 return;
-              }
-              
               // If waiting, check if server has unlocked the next stage
               if (serverLimitRef.current > progressTargetRef.current) {
                   // Determine next step target (don't jump to serverLimit immediately)
