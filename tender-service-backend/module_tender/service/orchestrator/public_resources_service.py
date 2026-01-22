@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.database import AsyncSessionLocal
 from module_tender.service.beijing_gov_procurement.tender_notice import GovTenderNoticeFetcher
 from module_tender.service.beijing_gov_procurement.win_candidate import GovWinCandidateFetcher
+from module_tender.service.gov_procurement.tender_service import TenderService
 from module_tender.service.public_resources.tender_notice import TenderNoticeFetcher
 from module_tender.service.public_resources.tender_plan import TenderPlanFetcher
 from module_tender.service.public_resources.win_candidate import WinCandidateFetcher
@@ -84,6 +85,18 @@ class PublicResourcesService:
         return await GovWinCandidateFetcher.fetch(db=db, start_date=start_date, end_date=end_date)
 
     @classmethod
+    async def fetch_ccgp_tender_notice(
+        cls,
+        start_date: str,
+        end_date: str,
+        db: AsyncSession,
+    ) -> int:
+        """
+        获取CCGP政府采购网招标公告
+        """
+        return await TenderService.fetch(db=db, start_date=start_date, end_date=end_date)
+
+    @classmethod
     async def fetch_all(
         cls,
         start_date: str,
@@ -97,6 +110,7 @@ class PublicResourcesService:
         include_win_candidate: bool = True,
         include_gov_notice: bool = True,
         include_gov_win_candidate: bool = True,
+        include_ccgp_notice: bool = True,
     ) -> dict[str, int]:
         result: dict[str, int] = {
             "plan": 0,
@@ -104,6 +118,7 @@ class PublicResourcesService:
             "win_candidate": 0,
             "gov_notice": 0,
             "gov_win_candidate": 0,
+            "ccgp_notice": 0,
             "total": 0,
         }
 
@@ -134,6 +149,9 @@ class PublicResourcesService:
         if include_gov_win_candidate:
             coroutines.append(run_task("gov_win_candidate", cls.fetch_gov_win_candidate, start_date=start_date, end_date=end_date))
 
+        if include_ccgp_notice:
+            coroutines.append(run_task("ccgp_notice", cls.fetch_ccgp_tender_notice, start_date=start_date, end_date=end_date))
+
         if coroutines:
             # 并行执行所有任务
             task_results = await asyncio.gather(*coroutines)
@@ -146,6 +164,7 @@ class PublicResourcesService:
             + result["win_candidate"]
             + result["gov_notice"]
             + result["gov_win_candidate"]
+            + result["ccgp_notice"]
         )
         return result
 
@@ -170,6 +189,7 @@ async def public_resources_tender_sync_job(
     include_notice: bool = True,
     include_win_candidate: bool = True,
     include_gov_notice: bool = True,
+    include_ccgp_notice: bool = True,
     **kwargs,
 ) -> None:
     days_back_int = max(0, _to_int(days_back, 7))
@@ -197,6 +217,7 @@ async def public_resources_tender_sync_job(
             include_notice=include_notice,
             include_win_candidate=include_win_candidate,
             include_gov_notice=include_gov_notice,
+            include_ccgp_notice=include_ccgp_notice,
         )
     logger.info(f"public_resources_tender_sync_job done: {result}")
 
@@ -214,7 +235,8 @@ async def test_fetch_tender_data() -> None:
             include_notice=False,
             include_win_candidate=False,
             include_gov_notice=False,
-            include_gov_win_candidate=True,
+            include_gov_win_candidate=False,
+            include_ccgp_notice=True,
         )
         print(f"Fetched gov tender notice: {result}")
 
